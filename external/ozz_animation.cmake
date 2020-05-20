@@ -1,0 +1,10 @@
+# Fetch ozz-animation
+option(OZZ_VERSION "ozz-animation version" 0.12.1)
+set(ozz_build_tools ON)
+set(ozz_build_fbx OFF)
+set(ozz_build_data OFF)
+set(ozz_build_samples OFF)
+set(ozz_build_howtos OFF)
+set(ozz_build_testst OFF)
+fetch_extern(ozz-animation https://github.com/guillaumeblanc/ozz-animation ${OZZ_VERSION})
+set(OZZ_LIBRARRIES ozz_base ozz_animation_offline ozz_animation ozz_geometry ozz_options)
