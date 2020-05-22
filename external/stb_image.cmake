@@ -6,5 +6,5 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/stb_image/stb_image.cpp
 #define STB_IMAGE_IMPLEMENTATION\n
 #include \"stb_image.h\"")
 add_library(stb_image ${CMAKE_CURRENT_BINARY_DIR}/stb_image/stb_image.h ${CMAKE_CURRENT_BINARY_DIR}/stb_image/stb_image.cpp)
-target_include_directories(stb_image PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/stb_image)
+target_include_directories(stb_image PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
