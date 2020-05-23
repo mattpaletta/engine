@@ -21,6 +21,7 @@ set(ENGINE_CXX_OVERLOADS ON)
 
 # Include the addons
 add_subdirectory(cmake)
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
@@ -37,6 +38,30 @@ include(external/stb_image.cmake)
 include(external/glad.cmake)
 include(external/fiber_tasking_lib.cmake)
 find_package(GLFW3 REQUIRED)
+
+fetch_extern(glslang https://github.com/KhronosGroup/glslang.git 8.13.3743)
+get_property(glslang_BINARY_DIR GLOBAL PROPERTY glslang_BINARY_DIR)
+function(test_shaders_func SHADERS end_target)
+	add_custom_target(${end_target})
+	set(${end_target}_DEPENDS "")
+
+	# Get location of final binary
+	set(glslangValidatorProg $<TARGET_FILE:glslangValidator>)
+
+	foreach(shader IN LISTS SHADERS)
+		message("${end_target} - Found shader: ${shader}")
+		get_filename_component(shader_name ${shader} NAME)
+		if (NOT TARGET "${end_target}_shader_${shader_name}")
+			add_custom_target("${end_target}_shader_${shader_name}"
+				COMMAND ${glslangValidatorProg} ${shader}
+				DEPENDS glslangValidator ${shader}
+				WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+				COMMENT "${end_target} - Verifying Shader: ${shader_name}")
+			list(APPEND ${end_target}_DEPENDS "${end_target}_shader_${shader_name}")
+		endif()
+		add_dependencies(${end_target} ${${end_target}_DEPENDS})
+	endforeach()
+endfunction()
 
 # VR Library depends on Eigen
 include(external/eigen.cmake)
@@ -79,7 +104,6 @@ if (ENGINE_ENABLE_JSON)
 	set(JSON_LIBRARY nlohmann_json::nlohmann_json) 
 	target_compile_definitions(engine PUBLIC "-DENGINE_ENABLE_JSON=1")
 endif()
-
 
 set(ENGINE_DEPS glad glm OpenGL::GL stb_image ${GLFW3_LIBRARY} ftl
 	# Add all components
