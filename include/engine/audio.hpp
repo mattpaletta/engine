@@ -2,12 +2,58 @@
 
 #include <string>
 #include <map>
+#include <memory>
 
 #if ENGINE_ENABLE_AUDIO
 #include "AL/al.h"
+#include "vorbis/codec.h"
+#include "vorbis/vorbisfile.h"
+#include <ogg/ogg.h>
+
+#include <sstream>
+#include <iostream>
+#include <fstream>
 #endif
 
 #include <constants/position.hpp>
+
+struct SoundDefinition {
+	const static std::size_t NUM_BUFFERS = 4;
+	const static ALsizei BUFFER_SIZE = 65536;
+
+	SoundDefinition() {};
+	~SoundDefinition() {};
+
+	// Not Copyable
+
+	std::string name;
+#if ENGINE_ENABLE_AUDIO
+	ALuint source;
+	ALuint buffer;
+
+	ALfloat offset;
+	ALenum state;
+	bool is_ogg = false;
+
+	// Different for OGG Files
+	ALuint buffers[NUM_BUFFERS];
+	std::string filename;
+	std::ifstream file;
+	std::uint8_t channels;
+	std::int32_t sampleRate;
+	std::uint8_t bitsPerSample;
+	ALsizei size;
+
+	// ALuint source;
+	ALsizei sizeConsumed = 0;
+	ALenum format;
+	OggVorbis_File oggVorbisFile;
+	std::int_fast32_t oggCurrentSection = 0;
+	std::size_t duration;
+
+#endif
+	std::string err_msg;
+};
 
 class AudioEngine {
 public:
@@ -40,21 +86,7 @@ public:
 
 private:
 	bool isShutdown;
-	struct SoundDefinition {
-		SoundDefinition() = default;
-		~SoundDefinition() = default;
 
-		std::string name;
-#if ENGINE_ENABLE_AUDIO
-		ALuint source;
-		ALuint buffer;
-
-		ALfloat offset;
-		ALenum state;
-#endif
-		std::string err_msg;
-	};
-
-	using SoundMap = std::map<std::string, SoundDefinition>;
+	using SoundMap = std::map<std::string, std::unique_ptr<SoundDefinition>>;
 	SoundMap sounds;
 };

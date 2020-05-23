@@ -95,7 +95,7 @@ std::string ResourceManager::RegisterSound(const std::string& file, const std::s
 
 std::string& ResourceManager::GetSound(const std::string& name) {
     if (Sounds.find(name) == Sounds.end()) {
-        std::cout << "Failed to get texture: " << name << std::endl;
+        std::cout << "Failed to get sound: " << name << std::endl;
     }
 #if ENGINE_DEBUG
     UnusedSounds.erase(name);

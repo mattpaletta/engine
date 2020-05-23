@@ -115,6 +115,7 @@ endif()
 
 target_include_directories(engine PUBLIC ${GLFW3_INCLUDE_DIR})
 target_include_directories(engine PUBLIC include)
+target_include_directories(engine PUBLIC ${OpenAl_INCLUDE_DIRECTORIES})
 target_link_libraries(engine PUBLIC ${ENGINE_DEPS})
 
 target_compile_definitions(engine PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
