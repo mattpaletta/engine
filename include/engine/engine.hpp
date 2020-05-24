@@ -55,6 +55,8 @@ private:
 	int getScaledHeight() const;
 	float getScaleRatio() const;
 
+	// Debug
+	Colour clearColour = Colour::black;
 public:
 	Engine(std::shared_ptr<Game> _g);
 	Engine(const ScreenSize& size, std::shared_ptr<Game> _g);
@@ -74,6 +76,9 @@ public:
 
 	// Runs the Render Loop
 	void run();
+
+	// Debug
+	void setClearColour(const Colour& colour);
 
 	// 3D
 	Renderer3D* get3DRenderer();

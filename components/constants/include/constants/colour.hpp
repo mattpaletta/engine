@@ -3,13 +3,12 @@
 
 class Colour {
 private:
+	constexpr Colour(const float& _R, const float& _G, const float& _B) : R(_R), G(_G), B(_B) {}
+public:
 	float R;
 	float G;
 	float B;
 
-	constexpr Colour(const float& _R, const float& _G, const float& _B) : R(_R), G(_G), B(_B) {}
-
-public:
 	static Colour white;
 	static Colour red;
 	static Colour blue;
@@ -18,6 +17,9 @@ public:
 
 	constexpr Colour() : R(0), G(0), B(0) {}
 	constexpr Colour(const int hexValue) : R(((hexValue >> 16) & 0xFF) / 255.0f), G(((hexValue >> 8) & 0xFF) / 255.0f), B(((hexValue) & 0xFF) / 255.0f) {}
+
+	bool operator==(const Colour& other) const noexcept;
+	bool operator!=(const Colour& other) const noexcept;
 
 	constexpr static Colour from_hex(const int hexValue) {
 		auto R = ((hexValue >> 16) & 0xFF) / 255.0f;  // Extract the RR byte

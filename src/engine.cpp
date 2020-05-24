@@ -127,6 +127,10 @@ void Engine::init_opengl() {
     this->renderer3d = std::make_unique<Renderer3D>();
 }
 
+void Engine::setClearColour(const Colour& colour) {
+    this->clearColour = colour;
+}
+
 float Engine::getScaleRatio() const {
     ScreenSize scaled_size;
     glfwGetFramebufferSize(this->window, &scaled_size.WIDTH, &scaled_size.HEIGHT);
@@ -201,7 +205,7 @@ void Engine::run() {
 #endif
         // render
         // ------
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(clearColour.R, clearColour.G, clearColour.B, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         this->game->Render();
