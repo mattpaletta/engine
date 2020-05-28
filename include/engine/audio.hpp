@@ -18,8 +18,10 @@
 #include <constants/position.hpp>
 
 struct SoundDefinition {
+#if ENGINE_ENABLE_AUDIO
 	const static ALuint NUM_BUFFERS = 4;
 	const static ALsizei BUFFER_SIZE = 65536;
+#endif
 
 	SoundDefinition() {};
 	~SoundDefinition() {};
