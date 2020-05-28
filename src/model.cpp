@@ -21,8 +21,8 @@ void Model::loadModel(Engine* engine, const std::string& path) {
 		return;
 	}
 
-	const auto directory = constants::fs::path(path).root_path();
-	this->processNode(engine, *scene->mRootNode, *scene);
+	const auto directory = constants::fs::path(path).parent_path();
+	this->processNode(engine, *scene->mRootNode, *scene, directory);
 }
 
 Mesh& Model::getMesh(const std::size_t i) {
@@ -45,18 +45,18 @@ void Model::Init() {
 	}
 }
 
-void Model::processNode(Engine* engine, const aiNode& node, const aiScene& scene) {
+void Model::processNode(Engine* engine, const aiNode& node, const aiScene& scene, const constants::fs::path& root_dir) {
 	for (unsigned int i = 0; i < node.mNumMeshes; ++i) {
 		const auto* mesh = scene.mMeshes[node.mMeshes[i]];
-		this->meshes.emplace_back(this->processMesh(engine, *mesh, scene));
+		this->meshes.emplace_back(this->processMesh(engine, *mesh, scene, root_dir));
 	}
 
 	for (unsigned int i = 0; i < node.mNumChildren; ++i) {
-		this->processNode(engine, *node.mChildren[i], scene);
+		this->processNode(engine, *node.mChildren[i], scene, root_dir);
 	}
 }
 
-Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene) const {
+Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene, const constants::fs::path& root_dir) const {
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 	std::vector<Texture2D> meshTextures;
@@ -113,19 +113,19 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 	// normal: texture_normalN
 
 	// 1. diffuse maps
-	std::vector<Texture2D> diffuseMaps = this->loadMaterialTexture(engine, *material, aiTextureType_DIFFUSE, "texture_diffuse");
+	std::vector<Texture2D> diffuseMaps = this->loadMaterialTexture(engine, *material, aiTextureType_DIFFUSE, "texture_diffuse", root_dir);
 	meshTextures.insert(meshTextures.end(), diffuseMaps.begin(), diffuseMaps.end());
 
 	// 2. specular maps
-	std::vector<Texture2D> specularMaps = this->loadMaterialTexture(engine, *material, aiTextureType_SPECULAR, "texture_specular");
+	std::vector<Texture2D> specularMaps = this->loadMaterialTexture(engine, *material, aiTextureType_SPECULAR, "texture_specular", root_dir);
 	meshTextures.insert(meshTextures.end(), specularMaps.begin(), specularMaps.end());
 	
 	// 3. normal maps
-	std::vector<Texture2D> normalMaps = this->loadMaterialTexture(engine, *material, aiTextureType_HEIGHT, "texture_normal");
+	std::vector<Texture2D> normalMaps = this->loadMaterialTexture(engine, *material, aiTextureType_HEIGHT, "texture_normal", root_dir);
 	meshTextures.insert(meshTextures.end(), normalMaps.begin(), normalMaps.end());
 	
 	// 4. height maps
-	std::vector<Texture2D> heightMaps = this->loadMaterialTexture(engine, *material, aiTextureType_AMBIENT, "texture_height");
+	std::vector<Texture2D> heightMaps = this->loadMaterialTexture(engine, *material, aiTextureType_AMBIENT, "texture_height", root_dir);
 	meshTextures.insert(meshTextures.end(), heightMaps.begin(), heightMaps.end());
 
 	Mesh finalMesh(vertices, indices, meshTextures);
@@ -137,14 +137,15 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 	return finalMesh;
 }
 
-std::vector<Texture2D> Model::loadMaterialTexture(Engine* engine, const aiMaterial& mat, const aiTextureType& type, const std::string& typeName) const {
+std::vector<Texture2D> Model::loadMaterialTexture(Engine* engine, const aiMaterial& mat, const aiTextureType& type, const std::string& typeName, const constants::fs::path& root_dir) const {
 	std::vector<Texture2D> materialTextures;
 	for (unsigned int i = 0; i < mat.GetTextureCount(type); ++i) {
 		aiString str;
 		mat.GetTexture(type, i, &str);
 
-		const std::string model_name = "model_" + std::string(str.C_Str());
-		auto texture = engine->getResourceManager()->LoadTexture(str.C_Str(), model_name);
+        const std::string model_path = root_dir.string() + "/" + std::string(str.C_Str());
+        const std::string model_name = "model_" + model_path;
+		auto texture = engine->getResourceManager()->LoadTexture(model_path, model_name);
 		texture.desc = typeName;
 		// This will automatically return the old texture if it is already loaded.
 		materialTextures.push_back(texture);

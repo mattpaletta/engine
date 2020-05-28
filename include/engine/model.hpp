@@ -13,6 +13,7 @@
 #include <map>
 #include <vector>
 
+#include <constants/filesystem.hpp>
 #include <constants/shader.hpp>
 #include <constants/texture.hpp>
 
@@ -26,12 +27,12 @@ private:
 	//bool gammaCorrection;
 	
 	// processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
-	void processNode(Engine* engine, const aiNode& node, const aiScene& scene);
-	Mesh processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene) const;
+	void processNode(Engine* engine, const aiNode& node, const aiScene& scene, const constants::fs::path& root_dir);
+	Mesh processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene, const constants::fs::path& root_dir) const;
 
 	// checks all material textures of a given type and loads the textures if they're not loaded yet.
 	// the required info is returned as a Texture struct.
-	std::vector<Texture2D> loadMaterialTexture(Engine* engine, const aiMaterial& mat, const aiTextureType& type, const std::string& typeName) const;
+	std::vector<Texture2D> loadMaterialTexture(Engine* engine, const aiMaterial& mat, const aiTextureType& type, const std::string& typeName, const constants::fs::path& root_dir) const;
 	
 	// Overrided version
 	using GameObject::Draw;
