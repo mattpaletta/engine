@@ -1,0 +1,8 @@
+set(ASSIMP_VERSION v5.0.0)
+# set(BUILD_SHARED_LIBS ON)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+set(ASSIMP_BUILD_BUILD_SAMPLES OFF)
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_INSTALL ON)
+
+fetch_extern(assimp https://github.com/assimp/assimp.git ${ASSIMP_VERSION})

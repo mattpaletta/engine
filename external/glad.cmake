@@ -1,8 +1,11 @@
 # Fetch GLAD
-option(GLAD_VERSION "Glad Version" v0.1.33)
+set(GLAD_VERSION fd8ea1acebad326f2c3078d9ca5955b22c34f3dd)
 set(GLAD_PROFILE "core")
 set(GLAD_API "gl=3.3")
 set(GLAD_GENERATOR "c")
 set(GLAD_REPRODUCIBLE ON)
 set(GLAD_ALL_EXTENSIONS ON)
 fetch_extern(glad https://github.com/Dav1dde/glad ${GLAD_VERSION})
+if(NOT APPLE AND NOT WIN32)
+	target_compile_options(glad PUBLIC -fPIC)
+endif()

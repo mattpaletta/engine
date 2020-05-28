@@ -1,2 +1,7 @@
-option(EIGEN_VERSION "Eigen Library Version" 3.3.7)
+#set(EIGEN_VERSION 3.3.7)
+set(EIGEN_VERSION 4e7046063babd95e100ab202d52ca5776997c80c)
+set(EIGEN_BUILD_PKGCONFIG ON)
+set(EIGEN_SPLIT_LARGE_TESTS OFF)
+set(BUILD_TESTING OFF)
+
 fetch_extern(eigen https://gitlab.com/libeigen/eigen.git ${EIGEN_VERSION})

@@ -1,11 +1,11 @@
 #include "shader.hpp"
+#include "filesystem.hpp"
 
 #include "glad/glad.h" // include glad to get all the required OpenGL headers
 
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <filesystem>
 
 namespace {
     unsigned int CompileShader(const std::string& shaderSource, const GLuint& shaderType) {
@@ -17,13 +17,13 @@ namespace {
         return shader;
     }
 
-    bool VerifyShader(unsigned int shader, const std::string& step) {
+    bool VerifyShader(unsigned int shader, [[maybe_unused]] const std::string& step) {
         int  success;
-        constexpr std::size_t info_msg_length = 512;
-        char infoLog[info_msg_length];
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 
 #if ENGINE_DEBUG
+        constexpr std::size_t info_msg_length = 512;
+        char infoLog[info_msg_length];
         if (!success) {
             glGetShaderInfoLog(shader, info_msg_length, NULL, infoLog);
             std::cerr << "ERROR::SHADER::" << step << "::COMPILATION_FAILED - " << infoLog << std::endl;
@@ -74,16 +74,15 @@ namespace {
     }
 }
 
-Shader::Shader(const std::string& vertexSrc, const std::string& fragmentSrc, const std::string& geometrySrc) : ID(CreateShaderProgram(vertexSrc, fragmentSrc)) {}
+Shader::Shader(const std::string& vertexSrc, const std::string& fragmentSrc) : ID(CreateShaderProgram(vertexSrc, fragmentSrc)) {}
 
-Shader Shader::from_file(const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath) {
+Shader Shader::from_file(const std::string& vertexPath, const std::string& fragmentPath) {
     // Helper function that reads the source code from each path, along with error messages.
     auto readFile = [](const std::string& inputFile, const std::string& shaderType) {
         std::string shaderCode = "";
-
         if (inputFile == "") {
             return shaderCode;
-        } else if (!std::filesystem::exists(inputFile)) {
+        } else if (!constants::fs::exists(inputFile)) {
             std::cerr << "ERROR::" << shaderType << "::FILE_NOT_FOUND - " << inputFile << std::endl;
             return shaderCode;
         }
@@ -105,17 +104,17 @@ Shader Shader::from_file(const std::string& vertexPath, const std::string& fragm
 
             // convert stream into string
             shaderCode = shaderStream.str();
-        } catch (std::ifstream::failure e) {
-            std::cerr << "ERROR::" << shaderType << "::FILE_NOT_SUCCESFULLY_READ - " << inputFile << std::endl;
+        } catch (const std::ifstream::failure& e) {
+            std::cerr << "ERROR::" << shaderType << "::FILE_NOT_SUCCESFULLY_READ (" << e.what() << ") - " << inputFile << std::endl;
         }
 
         return shaderCode;
     };
 
-    return { readFile(vertexPath, "VERTEX"), readFile(fragmentPath, "FRAGMENT"), readFile(geometryPath, "GEOMETRY") };
+    return { readFile(vertexPath, "VERTEX"), readFile(fragmentPath, "FRAGMENT") };
 }
 
-const unsigned int Shader::id() const {
+unsigned int Shader::id() const {
     return this->ID;
 }
 
@@ -134,7 +133,7 @@ Shader& Shader::use() {
 }
 
 const Shader& Shader::setBool(const std::string& name, bool value) const {
-    glUniform1i(glGetUniformLocation(this->ID, name.c_str()), (int)value);
+    glUniform1i(glGetUniformLocation(this->ID, name.c_str()), static_cast<int>(value));
     return *this;
 }
 

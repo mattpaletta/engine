@@ -11,16 +11,16 @@ public:
 
     // constructor reads and builds the shader
     Shader() : ID(0) {}
-    Shader(const std::string& vertexSrc, const std::string& fragmentSrc, const std::string& geometrySrc = "");
+    Shader(const std::string& vertexSrc, const std::string& fragmentSrc);
 
-    static Shader from_file(const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath = "");
+    static Shader from_file(const std::string& vertexPath, const std::string& fragmentPath/*, const std::string& geometryPath = ""*/);
 
     // use/activate the shader
     Shader& use();
 
     bool valid() const;
 
-    const unsigned int id() const;
+    unsigned int id() const;
 
     // utility uniform functions
     const Shader& setBool(const std::string& name, bool value) const;

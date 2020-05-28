@@ -19,6 +19,7 @@ public:
 #endif
 
 	GameObject() = default;
+	virtual ~GameObject() = default;
 
 	// Moveable and copyable
 	GameObject(const GameObject&) = default;

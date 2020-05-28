@@ -4,6 +4,7 @@
 
 // HELPERS
 #include <cassert>
+#include <cstring> // std::memcpy
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -17,6 +18,7 @@ namespace openal {
         ///////////////////////
         // OGG Helper functions
         ///////////////////////
+		#define alCheckErrors() check_al_errors(__FILE__, __LINE__)
         #define alCall(function, ...) alCallImpl(__FILE__, __LINE__, function, __VA_ARGS__)
         #define alcCall(function, device, ...) alcCallImpl(__FILE__, __LINE__, function, device, __VA_ARGS__)
 
@@ -68,10 +70,10 @@ namespace openal {
         std::size_t read_ogg_callback(void* destination, std::size_t size1, std::size_t size2, void* fileHandle) {
             SoundDefinition* audioData = reinterpret_cast<SoundDefinition*>(fileHandle);
 
-            ALsizei length = size1 * size2;
+			std::size_t length = size1 * size2;
 
-            if (audioData->sizeConsumed + length > audioData->size) {
-                length = audioData->size - audioData->sizeConsumed;
+            if (static_cast<std::size_t>(audioData->sizeConsumed) + length > static_cast<std::size_t>(audioData->size)) {
+                length = static_cast<std::size_t>(audioData->size - audioData->sizeConsumed);
             }
 
             if (!audioData->file.is_open()) {
@@ -82,11 +84,12 @@ namespace openal {
                 }
             }
 
-            char* moreData = new char[length];
+			std::vector<char> moreData;
+			moreData.reserve(length);
 
             audioData->file.clear();
             audioData->file.seekg(audioData->sizeConsumed);
-            if (!audioData->file.read(&moreData[0], length)) {
+            if (!audioData->file.read(moreData.data(), static_cast<ogg_int64_t>(length))) {
                 if (audioData->file.eof()) {
                     audioData->file.clear(); // just clear the error, we will resolve it later
                 } else if (audioData->file.fail()) {
@@ -101,9 +104,7 @@ namespace openal {
             }
             audioData->sizeConsumed += length;
 
-            std::memcpy(destination, &moreData[0], length);
-
-            delete[] moreData;
+            std::memcpy(destination, moreData.data(), length);
 
             audioData->file.clear();
 
@@ -137,7 +138,12 @@ namespace openal {
 
         long int tell_ogg_callback(void* fileHandle) {
             SoundDefinition* audioData = reinterpret_cast<SoundDefinition*>(fileHandle);
+#if ENGINE_OS == ENGINE_OS_WIN32
+            // Linux sees this as a useless cast.
+            return static_cast<long>(audioData->sizeConsumed);
+#else
             return audioData->sizeConsumed;
+#endif
         }
 
         bool create_stream_from_file(const std::string& filename, SoundDefinition* audioData) {
@@ -173,17 +179,18 @@ namespace openal {
 
             audioData->channels = vorbisInfo->channels;
             audioData->bitsPerSample = 16;
-            audioData->sampleRate = vorbisInfo->rate;
+            audioData->sampleRate = static_cast<int>(vorbisInfo->rate);
             audioData->duration = ov_time_total(&audioData->oggVorbisFile, -1);
 
             alCall(alGenSources, 1, &audioData->source);
-            alCall(alSourcef, audioData->source, AL_PITCH, 1);
-            alCall(alSourcef, audioData->source, AL_GAIN, AL_MAX_GAIN);
-            alCall(alSource3f, audioData->source, AL_POSITION, 0, 0, 0);
-            alCall(alSource3f, audioData->source, AL_VELOCITY, 0, 0, 0);
+            alCall(alSourcef, audioData->source, AL_PITCH, 1.f);
+            alCall(alSourcef, audioData->source, AL_GAIN, static_cast<ALfloat>(AL_MAX_GAIN));
+            alCall(alSource3f, audioData->source, AL_POSITION, 0.f, 0.f, 0.f);
+            alCall(alSource3f, audioData->source, AL_VELOCITY, 0.f, 0.f, 0.f);
             alCall(alSourcei, audioData->source, AL_LOOPING, AL_FALSE);
 
-            alCall(alGenBuffers, SoundDefinition::NUM_BUFFERS, &audioData->buffers[0]);
+            alGenBuffers(SoundDefinition::NUM_BUFFERS, &audioData->buffers[0]);
+			alCheckErrors();
 
             if (audioData->file.eof()) {
                 std::cerr << "ERROR: Already reached EOF without loading data" << std::endl;
@@ -199,9 +206,9 @@ namespace openal {
             char* data = new char[SoundDefinition::BUFFER_SIZE];
 
             for (std::uint8_t i = 0; i < SoundDefinition::NUM_BUFFERS; ++i) {
-                std::int32_t dataSoFar = 0;
+                long dataSoFar = 0;
                 while (dataSoFar < SoundDefinition::BUFFER_SIZE) {
-                    std::int32_t result = ov_read(&audioData->oggVorbisFile, &data[dataSoFar], SoundDefinition::BUFFER_SIZE - dataSoFar, 0, 2, 1, &audioData->oggCurrentSection);
+                    const long result = ov_read(&audioData->oggVorbisFile, &data[dataSoFar], SoundDefinition::BUFFER_SIZE - static_cast<int>(dataSoFar), 0, 2, 1, &audioData->oggCurrentSection);
                     if (result == OV_HOLE) {
                         std::cerr << "ERROR: OV_HOLE found in initial read of buffer " << i << std::endl;
                         break;
@@ -233,10 +240,11 @@ namespace openal {
                     return false;
                 }
 
-                alCall(alBufferData, audioData->buffers[i], audioData->format, data, dataSoFar, audioData->sampleRate);
+                alCall(alBufferData, audioData->buffers[i], audioData->format, data, static_cast<int>(dataSoFar), audioData->sampleRate);
             }
 
-            alCall(alSourceQueueBuffers, audioData->source, SoundDefinition::NUM_BUFFERS, &audioData->buffers[0]);
+            alSourceQueueBuffers(audioData->source, static_cast<ALsizei>(SoundDefinition::NUM_BUFFERS), &audioData->buffers[0]);
+			alCheckErrors();
 
             delete[] data;
 
@@ -259,14 +267,15 @@ namespace openal {
                 ALuint buffer;
                 alCall(alSourceUnqueueBuffers, audioData->source, 1, &buffer);
 
-                char* data = new char[SoundDefinition::BUFFER_SIZE];
-                std::memset(data, 0, SoundDefinition::BUFFER_SIZE);
+                std::vector<char> data;
+                data.resize(SoundDefinition::BUFFER_SIZE);
+                data.erase(data.begin(), data.end());
 
-                ALsizei dataSizeToBuffer = 0;
-                std::int32_t sizeRead = 0;
+                long dataSizeToBuffer = 0;
+                long sizeRead = 0;
 
                 while (sizeRead < SoundDefinition::BUFFER_SIZE) {
-                    std::int32_t result = ov_read(&audioData->oggVorbisFile, &data[sizeRead], SoundDefinition::BUFFER_SIZE - sizeRead, 0, 2, 1, &audioData->oggCurrentSection);
+                    const long result = ov_read(&audioData->oggVorbisFile, &data.data()[sizeRead], SoundDefinition::BUFFER_SIZE - static_cast<int>(sizeRead), 0, 2, 1, &audioData->oggCurrentSection);
                     if (result == OV_HOLE) {
                         std::cerr << "ERROR: OV_HOLE found in update of buffer " << std::endl;
                         break;
@@ -301,7 +310,7 @@ namespace openal {
                 dataSizeToBuffer = sizeRead;
 
                 if (dataSizeToBuffer > 0) {
-                    alCall(alBufferData, buffer, audioData->format, data, dataSizeToBuffer, audioData->sampleRate);
+                    alCall(alBufferData, buffer, audioData->format, data.data(), static_cast<int>(dataSizeToBuffer), audioData->sampleRate);
                     alCall(alSourceQueueBuffers, audioData->source, 1, &buffer);
                 }
 
@@ -315,8 +324,6 @@ namespace openal {
                     alCall(alSourceStop, audioData->source);
                     alCall(alSourcePlay, audioData->source);
                 }
-
-                delete[] data;
             }
         }
     } // End Namespace
@@ -346,13 +353,13 @@ namespace openal {
         /* Open and initialize a device */
         device = NULL;
         if (desired_device != 0) {
-            device = alcOpenDevice((const ALCchar*)std::to_string(desired_device).c_str());
+            device = alcOpenDevice(std::to_string(desired_device).c_str());
             if (!device) {
                 std::cerr << "Failed to open " << desired_device << ", trying default" << std::endl;
             }
         }
         if (!device) {
-            char* s = (char*)alcGetString(device, ALC_DEFAULT_DEVICE_SPECIFIER);
+            const char* s = alcGetString(device, ALC_DEFAULT_DEVICE_SPECIFIER);
             std::cout << "Default Audio Device: " << s << std::endl;
             device = alcOpenDevice(NULL);
         }
@@ -368,7 +375,7 @@ namespace openal {
                 std::cout << "This device does not support enumeration OpenAL Extension." << std::endl;
             }
 
-#if _WIN32 || _WIN64
+#ifdef _WIN32
             std::cout << "Try installing OpenAL: (https://www.openal.org/downloads) and installing `OpenAL Windows Installer`" << std::endl;
 #endif
             return 1;
@@ -464,12 +471,12 @@ namespace openal {
         struct timespec ts;
         int ret = clock_gettime(CLOCK_REALTIME, &ts);
         if (ret != 0) return 0;
-        cur_time = (int)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+        cur_time = static_cast<int>(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 #else /* _POSIX_TIMERS > 0 */
         struct timeval tv;
         int ret = gettimeofday(&tv, NULL);
         if (ret != 0) return 0;
-        cur_time = (int)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+        cur_time = static_cast<int>(tv.tv_sec * 1000 + tv.tv_usec / 1000);
 #endif
 
         if (!start_time)
@@ -479,8 +486,8 @@ namespace openal {
 
     void al_nssleep(unsigned long nsec) {
         struct timespec ts, rem;
-        ts.tv_sec = (time_t)(nsec / 1000000000ul);
-        ts.tv_nsec = (long)(nsec % 1000000000ul);
+        ts.tv_sec = static_cast<time_t>(nsec / 1000000000ul);
+        ts.tv_nsec = static_cast<long>(nsec % 1000000000ul);
         while (nanosleep(&ts, &rem) == -1 && errno == EINTR) {
             ts = rem;
         }
@@ -507,7 +514,7 @@ namespace openal {
             std::cerr << "Could not open audio in " << filename << " : " << sf_strerror(sndfile) << std::endl;
             return 0;
         }
-        if (sfinfo.frames < 1 || sfinfo.frames >(sf_count_t) (INT_MAX / sizeof(short)) / sfinfo.channels) {
+        if (sfinfo.frames < 1 || sfinfo.frames > static_cast<sf_count_t>(INT_MAX / sizeof(short)) / sfinfo.channels) {
             std::cerr << "Bad sample count in " << filename << " (%" << sfinfo.frames << ")" << std::endl;;
             sf_close(sndfile);
             return 0;
@@ -525,7 +532,7 @@ namespace openal {
         }
 
         /* Decode the whole audio file to a buffer. */
-        membuf = (short*)malloc((size_t)(sfinfo.frames * sfinfo.channels) * sizeof(short));
+        membuf = static_cast<short*>( malloc( static_cast<size_t>(sfinfo.frames * sfinfo.channels) * sizeof(short)) );
 
         num_frames = sf_readf_short(sndfile, membuf, sfinfo.frames);
         if (num_frames < 1) {
@@ -534,7 +541,7 @@ namespace openal {
             std::cerr << "Failed to read samples in " << filename << " (%" << num_frames << ")" << std::endl;
             return 0;
         }
-        num_bytes = (ALsizei)(num_frames * sfinfo.channels) * (ALsizei)sizeof(short);
+        num_bytes = static_cast<ALsizei>( static_cast<size_t>(num_frames * sfinfo.channels) * sizeof(short) );
 
         /* Buffer the audio data into a new buffer object, then free the data and
          * close the file.
@@ -577,7 +584,7 @@ namespace openal {
 
         source = 0;
         alGenSources(1, &source);
-        alSourcei(source, AL_BUFFER, (ALint)buffer);
+        alSourcei(source, AL_BUFFER, static_cast<ALint>(buffer));
         assert(alGetError() == AL_NO_ERROR && "Failed to setup sound source");
 
         /* Play the sound until it finishes. */
@@ -627,7 +634,7 @@ void AudioEngine::Init() {
 void AudioEngine::Update() {
 #if ENGINE_ENABLE_AUDIO
     for (auto& thisSound : this->sounds) {
-        if (alGetError() == AL_NO_ERROR && thisSound.second->state == AL_PLAYING || thisSound.second->is_ogg) {
+        if ((alGetError() == AL_NO_ERROR && thisSound.second->state == AL_PLAYING) || thisSound.second->is_ogg) {
             if (thisSound.second->is_ogg) {
                 openal::ogg::update_stream(thisSound.second.get());
             } else {
@@ -640,7 +647,7 @@ void AudioEngine::Update() {
         }
     }
 #endif
-    
+
 }
 
 void AudioEngine::Shutdown() {
@@ -650,7 +657,7 @@ void AudioEngine::Shutdown() {
     this->isShutdown = true;
 }
 
-void AudioEngine::LoadSound(const std::string& strSoundName, bool b3d, bool bLooping, bool bStream) {
+void AudioEngine::LoadSound(const std::string& strSoundName, bool bLooping) {
     this->sounds.emplace(strSoundName, std::make_unique<SoundDefinition>()); // Create default SoundDefinition
     auto* sound = this->sounds.at(strSoundName).get();
 
@@ -668,7 +675,7 @@ void AudioEngine::LoadSound(const std::string& strSoundName, bool b3d, bool bLoo
             sound->is_ogg = true;
         }
     }
-    
+
     // OGG Does it's own thing.
     if (sound->err_msg == "" && !sound->is_ogg) {
         if (bLooping) {
@@ -677,7 +684,7 @@ void AudioEngine::LoadSound(const std::string& strSoundName, bool b3d, bool bLoo
         }
 
         alGenSources(1, &sound->source);
-        alSourcei(sound->source, AL_BUFFER, (ALint) sound->buffer);   
+        alSourcei(sound->source, AL_BUFFER, static_cast<ALint>(sound->buffer));
     }
 
     if (alGetError() != AL_NO_ERROR) {
@@ -686,7 +693,7 @@ void AudioEngine::LoadSound(const std::string& strSoundName, bool b3d, bool bLoo
 #endif
 }
 
-void AudioEngine::Play(const std::string& strSoundName, const glm::vec3& vPos, float vVolumedB) {
+void AudioEngine::Play(const std::string& strSoundName) {
     auto* thisSound = this->sounds.at(strSoundName).get();
 #if ENGINE_ENABLE_AUDIO
         alSourceStop(thisSound->source);
@@ -707,7 +714,6 @@ void AudioEngine::UnLoadSound(const std::string& strSoundName) {
 
 bool AudioEngine::IsPlaying(const std::string& strSoundName) const {
 #if ENGINE_ENABLE_AUDIO
-    auto state = this->sounds.at(strSoundName)->state;
     return this->isLoaded(strSoundName) && this->sounds.at(strSoundName)->state == AL_PLAYING;
 #else
     return false;

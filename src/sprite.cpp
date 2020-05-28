@@ -25,7 +25,7 @@ constexpr std::size_t get_raw_array_size(const std::array<T, N>& a) {
 }
 
 Shader get_default_shader() {
-	const std::string sprite_vert = 
+	const std::string sprite_vert =
 		"#version 330 core"
 		"layout(location = 0) in vec4 vertex; // <vec2 position, vec2 texCoords>"
 		""
@@ -78,7 +78,7 @@ void SpriteRenderer::initRenderData() {
 
 	glBindVertexArray(this->quadVAO);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), static_cast<void*>(0));
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 }

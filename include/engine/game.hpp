@@ -28,7 +28,7 @@ public:
     // constructor/destructor
     Game(const ScreenSize& _window_size, const std::string& window_name);
     Game(const int width, const int height, const std::string& window_name);
-    ~Game() = default;
+    virtual ~Game() = default;
 
     // Delete move and copy operators.
     Game(const Game& g) = delete;

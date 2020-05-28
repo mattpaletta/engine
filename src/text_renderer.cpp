@@ -51,7 +51,7 @@ Shader getDefaultTextShader() {
 
 TextRenderer::TextRenderer() : shader(getDefaultTextShader()) {}
 
-void TextRenderer::Init(Engine* engine, const ScreenSize& size, const std::string& font, const unsigned int& fontSize) {
+void TextRenderer::Init([[maybe_unused]] Engine* engine, [[maybe_unused]] const ScreenSize& size, [[maybe_unused]] const std::string& font, [[maybe_unused]] const unsigned int& fontSize) {
 #if ENGINE_ENABLE_TEXT
 	// load and configure shader
 	this->shader.use().
@@ -112,7 +112,7 @@ void TextRenderer::Load(const std::string& font, const unsigned int& fontSize) {
 
 	// then for the first 128 ASCII characters, pre-load/compile their characters and store them
 	for (GLubyte c = 0; c < 128; ++c) {
-		// load character glyph 
+		// load character glyph
 		if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
 			std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
 			continue;
@@ -125,8 +125,8 @@ void TextRenderer::Load(const std::string& font, const unsigned int& fontSize) {
 			GL_TEXTURE_2D,
 			0,
 			GL_RED,
-			face->glyph->bitmap.width,
-			face->glyph->bitmap.rows,
+			static_cast<GLsizei>(face->glyph->bitmap.width),
+			static_cast<GLsizei>(face->glyph->bitmap.rows),
 			0,
 			GL_RED,
 			GL_UNSIGNED_BYTE,
@@ -143,7 +143,7 @@ void TextRenderer::Load(const std::string& font, const unsigned int& fontSize) {
 			texture,
 			glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
 			glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-			face->glyph->advance.x
+			static_cast<int>(face->glyph->advance.x)
 		};
 		Characters.insert(std::pair<char, Character>(c, character));
 	}
@@ -158,7 +158,7 @@ void TextRenderer::Load(const std::string& font, const unsigned int& fontSize) {
 #endif
 }
 
-void TextRenderer::RenderText(Engine* engine, const std::string& text, const Position2d& pos, const float& scale, const Colour& color) {
+void TextRenderer::RenderText([[maybe_unused]] Engine* engine, [[maybe_unused]] const std::string& text, [[maybe_unused]] const Position2d& pos, [[maybe_unused]] const float& scale, [[maybe_unused]] const Colour& color) {
 #if ENGINE_ENABLE_TEXT
 	// activate corresponding render state
 	this->shader.use().\
@@ -201,7 +201,7 @@ void TextRenderer::RenderText(Engine* engine, const std::string& text, const Pos
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		// now advance cursors for next glyph
-		currPos.x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (1/64th times 2^6 = 64)
+		currPos.x += static_cast<float>(ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (1/64th times 2^6 = 64)
 	}
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);

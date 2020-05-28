@@ -23,18 +23,18 @@ private:
 	Eigen::Matrix4f rightEyePos;
 
 	// Render
-	unsigned int renderWidth;
+	unsigned int renderWidth; // These are kept as unsigned int, because of the VR library support
 	unsigned int renderHeight;
 	FramebufferDesc leftFrameBufferDesc;
 	FramebufferDesc rightFrameBufferDesc;
 	GLuint companionWindowVAO;
 	GLuint companionWindowIDVertBuffer;
 	GLuint companionWindowIDIndexBuffer;
-	unsigned int companionWindowIndexSize;
-	FramebufferDesc CreateEyeFrameBuffer(unsigned int width, unsigned int height);
+	std::size_t companionWindowIndexSize;
+	FramebufferDesc CreateEyeFrameBuffer(int width, int height);
 	void CreateCompanionWindow();
 
-	vr::IVRSystem* vr_pointer = nullptr;
+	vr::IVRSystem* vr_pointer;
 
 	// Shutdown
 	bool has_shutdown = false;
@@ -56,7 +56,7 @@ private:
 	// Utility Functions
 	std::string getEnglishTrackingResultForPose(const vr::TrackedDevicePose_t& pose);
 	std::string getEnglishPoseValidity(const vr::TrackedDevicePose_t& pose);
-	std::string getPoseXYZString(const vr::TrackedDevicePose_t& pose, int hand);
+	std::string getPoseXYZString(const vr::TrackedDevicePose_t& pose);
 
 	Eigen::Matrix4f GetHMDMatrixProjection(const vr::Hmd_Eye& nEye, const float nearClip = 0.1f, const float farClip = 30.0f);
 	Eigen::Matrix4f GetHMDMatrixPoseEye(const vr::Hmd_Eye& nEye);
@@ -73,5 +73,5 @@ public:
 	void GetTrackingPose();
 
 	// Should be in range: [0 - 3999]
-	void RunVibration(const int leftStrength, const int rightStrength);
+	void RunVibration(const unsigned short leftStrength, const unsigned short rightStrength);
 };

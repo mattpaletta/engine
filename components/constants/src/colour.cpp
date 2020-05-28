@@ -10,8 +10,10 @@ glm::vec3 Colour::to_vec3() const {
 	return { this->R, this->G, this->B };
 }
 
+constexpr float epsilon = 0.0001f;
+
 bool Colour::operator==(const Colour& other) const noexcept {
-	return this->R == other.R && this->G == other.G && this->B == other.B;
+	return std::abs(this->R - other.R) > epsilon && std::abs(this->G - other.G) > epsilon && std::abs(this->B - other.B) > epsilon;
 }
 
 bool Colour::operator!=(const Colour& other) const noexcept {

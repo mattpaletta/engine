@@ -2,6 +2,7 @@
 
 #include <Eigen/LU>
 
+#include <array>
 #include <iostream>
 #include <sstream>
 #include <cassert>
@@ -39,21 +40,21 @@ void VRApplication::Init() {
 	this->vr_pointer->GetRecommendedRenderTargetSize(&this->renderWidth, &this->renderHeight);
 
 	// Setup frame buffers
-	this->leftFrameBufferDesc = this->CreateEyeFrameBuffer(this->renderWidth, this->renderHeight);
-	this->rightFrameBufferDesc = this->CreateEyeFrameBuffer(this->renderWidth, this->renderHeight);
+	this->leftFrameBufferDesc = this->CreateEyeFrameBuffer(static_cast<int>(this->renderWidth), static_cast<int>(this->renderHeight));
+	this->rightFrameBufferDesc = this->CreateEyeFrameBuffer(static_cast<int>(this->renderWidth), static_cast<int>(this->renderHeight));
 
 	// Setup Companion window
 	this->CreateCompanionWindow();
 
 	// Create VR Compositor
-	vr::EVRInitError peError = vr::VRInitError_None;
+//	vr::EVRInitError peError = vr::VRInitError_None;
 	if (!vr::VRCompositor()) {
 		std::cerr << "Compositor initialization failed" << std::endl;
 		std::terminate();
 	}
 }
 
-FramebufferDesc VRApplication::CreateEyeFrameBuffer(unsigned int width, unsigned int height) {
+FramebufferDesc VRApplication::CreateEyeFrameBuffer(int width, int height) {
 	FramebufferDesc frameBuffer;
 	glGenFramebuffers(1, &frameBuffer.renderFramebufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer.renderFramebufferId);
@@ -93,7 +94,7 @@ void VRApplication::CreateCompanionWindow() {
 	if (!this->vr_pointer) {
 		return;
 	}
-	
+
 	std::vector<VertexDataWindow> vVerts;
 
 	// left eye verts
@@ -108,25 +109,25 @@ void VRApplication::CreateCompanionWindow() {
 	vVerts.emplace_back(Position2d(0,  1), glm::vec2(0, 0));
 	vVerts.emplace_back(Position2d(1,  1), glm::vec2(1, 0));
 
-	const GLushort vIndices[] = { 0, 1, 3,   0, 3, 2,   4, 5, 7,   4, 7, 6 };
-	this->companionWindowIndexSize = _countof(vIndices);
+	const std::array<GLushort, 3 * 4> vIndices = { 0, 1, 3,   0, 3, 2,   4, 5, 7,   4, 7, 6 };
+	this->companionWindowIndexSize = vIndices.size();
 
 	glGenVertexArrays(1, &this->companionWindowVAO);
 	glBindVertexArray(this->companionWindowVAO);
 
 	glGenBuffers(1, &this->companionWindowIDVertBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, this->companionWindowIDVertBuffer);
-	glBufferData(GL_ARRAY_BUFFER, vVerts.size() * sizeof(VertexDataWindow), &vVerts[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vVerts.size() * sizeof(VertexDataWindow)), &vVerts[0], GL_STATIC_DRAW);
 
 	glGenBuffers(1, &this->companionWindowIDIndexBuffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->companionWindowIDIndexBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, this->companionWindowIndexSize * sizeof(GLushort), &vIndices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(this->companionWindowIndexSize * sizeof(GLushort)), &vIndices.data()[0], GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void*) offsetof(VertexDataWindow, position));
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), reinterpret_cast<void*>(offsetof(VertexDataWindow, position)));
 
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void*) offsetof(VertexDataWindow, texCoord));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), reinterpret_cast<void*>(offsetof(VertexDataWindow, texCoord)));
 
 	glBindVertexArray(0);
 
@@ -165,9 +166,15 @@ Eigen::Matrix4f VRApplication::GetHMDMatrixProjection(const vr::Hmd_Eye& nEye, c
 	if (!this->vr_pointer) {
 		return Eigen::Matrix4f();
 	}
-	const auto m = this->vr_pointer->GetProjectionMatrix(nEye, nearClip, farClip).m;
-	Eigen::Map<Eigen::Matrix4f> map(*m);
-	return map;
+	const auto m = this->vr_pointer->GetProjectionMatrix(nEye, nearClip, farClip);
+
+	Eigen::Matrix4f out;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			out << m.m[i][j];
+		}
+	}
+	return out;
 }
 
 
@@ -192,7 +199,7 @@ void VRApplication::Shutdown() {
 void VRApplication::FindTracker(const vr::VREvent_t& event, const bool did_find) {
 	vr::ETrackedDeviceClass trackedDeviceClass = this->vr_pointer->GetTrackedDeviceClass(event.trackedDeviceIndex);
 	if (trackedDeviceClass != vr::ETrackedDeviceClass::TrackedDeviceClass_GenericTracker) {
-		return; //this is a placeholder, but there isn't a tracker 
+		return; //this is a placeholder, but there isn't a tracker
 				// involved so the rest of the snippet should be skipped
 	}
 
@@ -211,7 +218,7 @@ void VRApplication::FindTracker(const vr::VREvent_t& event, const bool did_find)
 void VRApplication::FindController(const vr::VREvent_t& event, const bool did_find) {
 	vr::ETrackedDeviceClass trackedDeviceClass = this->vr_pointer->GetTrackedDeviceClass(event.trackedDeviceIndex);
 	if (trackedDeviceClass != vr::ETrackedDeviceClass::TrackedDeviceClass_Controller) {
-		return; //this is a placeholder, but there isn't a controller 
+		return; //this is a placeholder, but there isn't a controller
 				// involved so the rest of the snippet should be skipped
 	}
 
@@ -328,7 +335,7 @@ void VRApplication::HandleButtonEvent(const vr::VREvent_t& event) {
 	}
 }
 
-void VRApplication::RunVibration(const int leftStrength, const int rightStrength) {
+void VRApplication::RunVibration(const unsigned short leftStrength, const unsigned short rightStrength) {
 	// Should be in range: [0 - 3999]
 #if ENGINE_DEBUG_VR
 	assert(leftStrength >= 0);
@@ -352,12 +359,13 @@ void VRApplication::GetTrackingPose() {
 	// Get HMD Pose
 	vr_pointer->GetDeviceToAbsoluteTrackingPose(vr::TrackingUniverseStanding, sec_time_from_now, &trackedDevicePose, 1);
 
-	auto position = GetPosition(trackedDevicePose.mDeviceToAbsoluteTracking);
+	//auto position = GetPosition(trackedDevicePose.mDeviceToAbsoluteTracking);
 	auto rot = GetRotation(trackedDevicePose.mDeviceToAbsoluteTracking);
 
 #if ENGINE_DEBUG_VR
-	std::cout << "HMD " << this->getPoseXYZString(trackedDevicePose, 0) << std::endl;
+	std::cout << "HMD " << this->getPoseXYZString(trackedDevicePose) << std::endl;
 	std::cout << "HMD: " << this->getEnglishTrackingResultForPose(trackedDevicePose) << " " << this->getEnglishPoseValidity(trackedDevicePose) << std::endl;
+	
 	std::cout << ("HMD: qw:" + to_string_with_precision(rot.w, 2) +
 		" qx:" + to_string_with_precision(rot.x, 2) +
 		" qy:" + to_string_with_precision(rot.y, 2) +
@@ -369,7 +377,7 @@ void VRApplication::GetTrackingPose() {
 	if (this->left != 0) {
 		vr_pointer->GetControllerStateWithPose(vr::TrackingUniverseStanding, this->left, &LcontrollerState, sizeof(LcontrollerState), &LtrackedDevicePose);
 	}
-	
+
 	vr::TrackedDevicePose_t RtrackedDevicePose;
 	vr::VRControllerState_t RcontrollerState;
 	if (this->right != 0) {
@@ -396,22 +404,22 @@ vr::HmdVector3_t VRApplication::GetPosition(const vr::HmdMatrix34_t& matrix) {
 vr::HmdQuaternion_t VRApplication::GetRotation(const vr::HmdMatrix34_t& matrix) {
 	vr::HmdQuaternion_t q;
 
-	q.w = sqrt(fmax(0, 1 + matrix.m[0][0] + matrix.m[1][1] + matrix.m[2][2])) / 2;
-	q.x = sqrt(fmax(0, 1 + matrix.m[0][0] - matrix.m[1][1] - matrix.m[2][2])) / 2;
-	q.y = sqrt(fmax(0, 1 - matrix.m[0][0] + matrix.m[1][1] - matrix.m[2][2])) / 2;
-	q.z = sqrt(fmax(0, 1 - matrix.m[0][0] - matrix.m[1][1] + matrix.m[2][2])) / 2;
-	q.x = copysign(q.x, matrix.m[2][1] - matrix.m[1][2]);
-	q.y = copysign(q.y, matrix.m[0][2] - matrix.m[2][0]);
-	q.z = copysign(q.z, matrix.m[1][0] - matrix.m[0][1]);
+	q.w = std::sqrt(std::max(0.0, 1.0 + matrix.m[0][0] + matrix.m[1][1] + matrix.m[2][2])) / 2.0;
+	q.x = std::sqrt(std::max(0.0, 1.0 + matrix.m[0][0] - matrix.m[1][1] - matrix.m[2][2])) / 2.0;
+	q.y = std::sqrt(std::max(0.0, 1.0 - matrix.m[0][0] + matrix.m[1][1] - matrix.m[2][2])) / 2.0;
+	q.z = std::sqrt(std::max(0.0, 1.0 - matrix.m[0][0] - matrix.m[1][1] + matrix.m[2][2])) / 2.0;
+	q.x = std::copysign(q.x, matrix.m[2][1] - matrix.m[1][2]);
+	q.y = std::copysign(q.y, matrix.m[0][2] - matrix.m[2][0]);
+	q.z = std::copysign(q.z, matrix.m[1][0] - matrix.m[0][1]);
 	return q;
 }
 
 vr::HmdVector3_t VRApplication::ProcessRotation(const vr::HmdMatrix34_t& matrix) {
 	vr::HmdVector3_t ret;
-	ret.v[0] = atan2(matrix.m[1][2], matrix.m[2][2]);
-	ret.v[1] = atan2(-matrix.m[0][2],
-		sqrt(matrix.m[1][2] * matrix.m[1][2] + matrix.m[2][2] * matrix.m[2][2]));
-	ret.v[2] = atan2(matrix.m[0][1], matrix.m[0][0]);
+	ret.v[0] = std::atan2(matrix.m[1][2], matrix.m[2][2]);
+	ret.v[1] = std::atan2(-matrix.m[0][2],
+		std::sqrt(matrix.m[1][2] * matrix.m[1][2] + matrix.m[2][2] * matrix.m[2][2]));
+	ret.v[2] = std::atan2(matrix.m[0][1], matrix.m[0][0]);
 
 	return ret;
 }
@@ -429,6 +437,7 @@ std::string VRApplication::getEnglishTrackingResultForPose(const vr::TrackedDevi
 		return "Running OK";
 	case vr::ETrackingResult::TrackingResult_Running_OutOfRange:
 		return "WARNING: Running Out of Range";
+	case vr::ETrackingResult::TrackingResult_Fallback_RotationOnly:
 	default:
 		return "Default";
 	}
@@ -438,7 +447,7 @@ std::string VRApplication::getEnglishPoseValidity(const vr::TrackedDevicePose_t&
 	return pose.bPoseIsValid ? "Valid" : "Invalid";
 }
 
-std::string VRApplication::getPoseXYZString(const vr::TrackedDevicePose_t& pose, int hand) {
+std::string VRApplication::getPoseXYZString(const vr::TrackedDevicePose_t& pose) {
 	vr::HmdVector3_t pos = this->ProcessRotation(pose.mDeviceToAbsoluteTracking);
 	if (pose.bPoseIsValid) {
 		return   "x:" + to_string_with_precision(pos.v[0], 3) +

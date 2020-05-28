@@ -2,7 +2,9 @@
 
 Scheduler::Scheduler() {
 	// Create the task scheduler and bind the main thread to it
+#if ENGINE_ENABLE_MULTITHREADED
 	taskScheduler.Init();
+#endif
 }
 
 Scheduler::~Scheduler() {

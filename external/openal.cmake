@@ -1,6 +1,11 @@
 # Fetch OpenAL
 
-set(OGG_VERSION "v1.3.4")
+if (APPLE)
+	set(BUILD_FRAMEWORK ON)
+endif()
+
+# Need latest patch for MacOS
+set(OGG_VERSION "0bbcba4e7cf32324170470569c4527ffd0002870")
 fetch_extern(ogg https://github.com/xiph/ogg ${OGG_VERSION})
 get_property(ogg_SOURCE_DIR GLOBAL PROPERTY ogg_SOURCE_DIR)
 set(OGG_INCLUDE_DIRS ${ogg_SOURCE_DIR}/include)
@@ -8,8 +13,13 @@ set(OGG_LIBRARIES ogg)
 set(OGG_LIBRARY ogg)
 set(OGG_INCLUDE_DIR ${ogg_SOURCE_DIR}/include)
 
+if (APPLE)
+	set(BUILD_FRAMEWORK OFF)
+endif()
+
 # Optional Vorbis Support
 set(VORBIS_VERSION "v1.3.6")
+#set(VORBIS_VERSION 0a4beb1d04f802c48016b11fb939690e24173168)
 fetch_extern(vorbis https://github.com/xiph/vorbis.git ${VORBIS_VERSION})
 get_property(vorbis_SOURCE_DIR GLOBAL PROPERTY vorbis_SOURCE_DIR)
 set(Vorbis_Vorbis_INCLUDE_DIR ${vorbis_SOURCE_DIR}/include)
@@ -30,7 +40,8 @@ set(ALSOFT_UTILS ON)
 set(ALSOFT_INSTALL OFF)
 set(ALSOFT_BUILD_ROUTER OFF)
 
-fetch_extern(openal https://github.com/kcat/openal-soft openal-soft-1.20.1)
+set(OPENAL_VERSION openal-soft-1.20.1)
+fetch_extern(openal https://github.com/kcat/openal-soft ${OPENAL_VERSION})
 get_property(openal_SOURCE_DIR GLOBAL PROPERTY openal_SOURCE_DIR)
 set(OpenAl_INCLUDE_DIRECTORIES "${Vorbis_Vorbis_INCLUDE_DIR}")
 # SndFile::sndfile

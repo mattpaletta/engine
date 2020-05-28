@@ -38,14 +38,14 @@ private:
 #if ENGINE_ENABLE_VR
 	VRApplication vr;
 #endif
-	int leftStrength;
-	int rightStrength;
+	unsigned short leftStrength;
+	unsigned short rightStrength;
 
-	double deltaTime = 0.0f;
-	double lastFrame = 0.0f;
+	double deltaTime = 0.0;
+	double lastFrame = 0.0;
 
 	// OpenGL Window
-	GLFWwindow* window;
+	GLFWwindow* app_window;
 
 	void init_opengl();
 	void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -53,7 +53,7 @@ private:
 	// Utility Functions
 	int getScaledWidth() const;
 	int getScaledHeight() const;
-	float getScaleRatio() const;
+	double getScaleRatio() const;
 
 	// Debug
 	Colour clearColour = Colour::black;
@@ -69,7 +69,7 @@ public:
 	// Utility functions
 	Size scaleObj(const Size& desired_size) const;
 	float scaleConst(const float& desired_size) const;
-	ScreenSize Engine::getScaledWindowSize() const;
+	ScreenSize getScaledWindowSize() const;
 
 	// Window customization
 	void resizeable(bool value);
@@ -101,6 +101,6 @@ public:
 	Scheduler* getScheduler();
 
 	// VR
-	void Update_VR_vibration(const int leftStrength, const int rightStrength);
+	void Update_VR_vibration(const unsigned short leftStrength, const unsigned short rightStrength);
 	bool Is_VR_vibrating();
 };

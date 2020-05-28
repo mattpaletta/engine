@@ -6,19 +6,19 @@ Game::Game(const int width, const int height, const std::string& window_name) : 
 
 void Game::ClearEngineDelegate() noexcept {}
 
-void Game::SetEngineDelegate(Engine* engine) {
-	this->engine = engine;
-	this->window_size = engine->getScaledWindowSize();
+void Game::SetEngineDelegate(Engine* enginePtr) {
+	this->engine = enginePtr;
+	this->window_size = this->engine->getScaledWindowSize();
 }
 
 void Game::Init() {}
 
-void Game::Update(const double& dt) noexcept {}
+void Game::Update([[maybe_unused]] const double& dt) noexcept {}
 
-void Game::ProcessInput(const double& dt) noexcept {}
+void Game::ProcessInput([[maybe_unused]] const double& dt) noexcept {}
 
-void Game::pressed(const int key) noexcept {}
+void Game::pressed([[maybe_unused]] const int key) noexcept {}
 
-void Game::released(const int key) noexcept {}
+void Game::released([[maybe_unused]] const int key) noexcept {}
 
 void Game::Render() const noexcept {}
