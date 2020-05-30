@@ -32,7 +32,7 @@ Shader& ResourceManager::LoadShader(const std::string& vShaderFile, const std::s
 
 Shader& ResourceManager::GetShader(const std::string& name) {
 #if ENGINE_DEBUG
-    if (Shaders.find(name) == Shaders.end()) {
+    if (!this->ShaderLoaded(name)) {
         std::cout << "Failed to get shader: " << name << std::endl;
     }
     UnusedShaders.erase(name);
@@ -42,7 +42,7 @@ Shader& ResourceManager::GetShader(const std::string& name) {
 
 Shader& ResourceManager::GetShader(const std::string& name, const std::string& file, const std::size_t& line) {
 #if ENGINE_DEBUG
-    if (Shaders.find(name) == Shaders.end()) {
+    if (!this->ShaderLoaded(name)) {
         std::cout << "Failed to get shader: " << name << " at: [" << file << ":" << line << "]" << std::endl;
     }
 
@@ -52,16 +52,20 @@ Shader& ResourceManager::GetShader(const std::string& name, const std::string& f
     return Shaders.at(name);
 }
 
+bool ResourceManager::ShaderLoaded(const std::string& name) const {
+	return Shaders.find(name) != Shaders.end();
+}
+
 void ResourceManager::SetShaderAsSelfUsed(const std::string& name) {
 #if ENGINE_DEBUG
     UnusedShaders.erase(name);
 #endif
 }
 
-Texture2D& ResourceManager::LoadTexture(const std::string& file,const std::string& name) {
-    if (Textures.find(name) == Textures.end()) {
+Texture2D& ResourceManager::LoadTexture(const std::string& file,const std::string& name, const bool flip_vertically, const bool generate_mipmap) {
+    if (!this->ShaderLoaded(name)) {
         // Only load if not found.
-        Textures.emplace(name, loadTextureFromFile(file.c_str()));
+        Textures.emplace(name, loadTextureFromFile(file.c_str(), flip_vertically, generate_mipmap));
 
 #if ENGINE_DEBUG
         UnusedTextures.insert(name);
@@ -80,13 +84,17 @@ Texture2D& ResourceManager::LoadCubeMap(const CubeMap& faces, const bool flip_ve
 
 
 Texture2D& ResourceManager::GetTexture(const std::string& name) {
-    if (Textures.find(name) == Textures.end()) {
+    if (!this->TextureLoaded(name)) {
         std::cout << "Failed to get texture: " << name << std::endl;
     }
 #if ENGINE_DEBUG
     UnusedTextures.erase(name);
 #endif
     return Textures.at(name);
+}
+
+bool ResourceManager::TextureLoaded(const std::string& name) const {
+    return Textures.find(name) != Textures.end();
 }
 
 void ResourceManager::SetTextureAsSelfUsed(const std::string& name) {
@@ -152,38 +160,41 @@ Shader ResourceManager::loadShaderFromFile(const std::string& vShaderFile, const
     return Shader::from_file(vShaderFile, fShaderFile);
 }
 
-void ResourceManager::loadImageFile(unsigned char* data, ScreenSize* size, int* nrChannels, const std::string& file, const bool flip_vertically) {
+void ResourceManager::loadImageFile(unsigned char** data, ScreenSize* size, int* nrChannels, const std::string& file, const bool flip_vertically) {
 #if ENGINE_DEBUG
     if (!constants::fs::exists(file)) {
         std::cerr << "ERROR: texture file not found - " << file << std::endl;
     }
 #endif
 
-    stbi_set_flip_vertically_on_load(flip_vertically);
-    data = stbi_load(file.c_str(), &size->WIDTH, &size->HEIGHT, nrChannels, STBI_default);
+    // stbi_set_flip_vertically_on_load(flip_vertically);
+    *data = stbi_load(file.c_str(), &size->WIDTH, &size->HEIGHT, nrChannels, STBI_default);
 
 #if ENGINE_DEBUG
-    if (std::strlen(reinterpret_cast<char*>(data)) == 0) {
-        std::cout << "Texture read no data" << std::endl;
+    if (!*data) {
+        std::cout << "Error loading data" << std::endl;
     }
 #endif
 }
 
 
-Texture2D ResourceManager::loadTextureFromFile(const std::string& file, const bool flip_vertically) {
+Texture2D ResourceManager::loadTextureFromFile(const std::string& file, const bool flip_vertically, const bool generate_mipmap) {
     // create texture object
     Texture2D texture;
     texture.Wrap_S = GL_REPEAT;
     texture.Wrap_T = GL_REPEAT;
-    //    texture.Wrap_R = GL_REPEAT;
-    texture.Filter_Min = GL_LINEAR;
+	if (generate_mipmap) {
+    	texture.Filter_Min = GL_LINEAR_MIPMAP_LINEAR;
+	} else {
+    	texture.Filter_Min = GL_LINEAR;
+	}
     texture.Filter_Max = GL_LINEAR;
 
     ScreenSize size;
-    unsigned char* data = nullptr;
+    unsigned char* data;
     int nrChannels;
     // This will not automatically unload it.
-    this->loadImageFile(data, &size, &nrChannels, file, flip_vertically);
+    this->loadImageFile(&data, &size, &nrChannels, file, flip_vertically);
     if (nrChannels == 1) {
         texture.Internal_Format = GL_RED;
         texture.Image_Format = GL_RED;
@@ -194,12 +205,11 @@ Texture2D ResourceManager::loadTextureFromFile(const std::string& file, const bo
         texture.Internal_Format = GL_RGBA;
         texture.Image_Format = GL_RGBA;
     } else {
-        texture.Internal_Format = GL_RGB;
-        texture.Image_Format = GL_RGB;
+		std::cout << "ResourceManager::Texture::Error::Unknown number of channels" << std::endl;
     }
 
     // now generate texture
-    texture.Generate(size, data);
+    texture.Generate(size, data, generate_mipmap);
 
     // and finally free image data
     stbi_image_free(data);
@@ -214,14 +224,14 @@ Texture2D ResourceManager::loadCubeMapTextureFromFile(const CubeMap& faces, cons
     texture.Wrap_R = GL_CLAMP_TO_EDGE;
     texture.Filter_Min = GL_LINEAR;
     texture.Filter_Max = GL_LINEAR;
-    
+
     // Get size from first image
     auto load_face = [this, &flip_vertically, &texture](const std::string& face, const std::size_t& index) {
         int nrChannels;
         ScreenSize size;
         unsigned char* data = nullptr;
 
-        this->loadImageFile(data, &size, &nrChannels, face, flip_vertically);
+        this->loadImageFile(&data, &size, &nrChannels, face, flip_vertically);
         if (index == 0) {
             if (nrChannels == 1) {
                 texture.Internal_Format = GL_RED;

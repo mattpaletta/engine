@@ -29,7 +29,8 @@ public:
     Texture2D();
 
     // generates texture from image data
-    void Generate(const ScreenSize& screen_size, unsigned char* data);
+    void Generate(const ScreenSize& screen_size, unsigned char* data, const bool generate_mipmap = false);
+	void GenerateMipmap(const ScreenSize& screen_size, unsigned char* data);
 
     // Generate Cubemap (requires special parameters)
     void GenerateCubeMapInit(const ScreenSize& screen_size);

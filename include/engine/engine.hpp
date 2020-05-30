@@ -73,6 +73,7 @@ public:
 
 	// Window customization
 	void resizeable(bool value);
+	void enableBlending() const;
 
 	// Runs the Render Loop
 	void run();

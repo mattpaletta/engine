@@ -109,8 +109,6 @@ void Engine::init_opengl() {
     ScreenSize scaled_size;
     glfwGetFramebufferSize(this->app_window, &scaled_size.WIDTH, &scaled_size.HEIGHT);
     glViewport(0, 0, scaled_size.WIDTH, scaled_size.HEIGHT);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // configure global opengl state
     // -----------------------------
@@ -131,6 +129,11 @@ void Engine::init_opengl() {
 
 void Engine::setClearColour(const Colour& colour) {
     this->clearColour = colour;
+}
+
+void Engine::enableBlending() const {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 double Engine::getScaleRatio() const {

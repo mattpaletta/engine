@@ -1,42 +1,24 @@
 #include "engine/model.hpp"
-#include "engine/vertex.hpp"
-#include "engine/engine.hpp"
-
-#include <constants/filesystem.hpp>
 
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-#include <memory>
-
-Model::Model() {}
-Model::~Model() {}
-
-void Model::loadModel(Engine* engine, const std::string& path) {
-	// read file via Assimp
-	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcessPreset_TargetRealtime_MaxQuality);
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-		std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
-		return;
-	}
-
-	const auto directory = constants::fs::path(path).parent_path();
-	this->processNode(engine, *scene->mRootNode, *scene, directory);
+Model::Model(Engine* engine, const std::string& path, bool gamma) : gammaCorrection(gamma) {
+	this->loadModel(engine, path);
 }
 
-Mesh& Model::getMesh(const std::size_t i) {
-	return this->meshes.at(i);
+Model::~Model() {
+	for (auto& mesh : this->meshes) {
+		mesh.Cleanup();
+	}
+}
+
+Mesh& Model::getMesh(const std::size_t& i) {
+		return this->meshes.at(i);
 }
 
 std::size_t Model::numMeshes() const {
-	return this->meshes.size();
-}
-
-void Model::UpdatePerspective(Renderer3D* renderer) {
-	for (auto& mesh : this->meshes) {
-		mesh.UpdatePerspective(renderer);
-	}
+		return this->meshes.size();
 }
 
 void Model::Init() {
@@ -45,65 +27,98 @@ void Model::Init() {
 	}
 }
 
+void Model::UpdatePerspective(Renderer3D* renderer) {
+	for (auto& mesh : this->meshes) {
+		mesh.UpdatePerspective(renderer);
+	}
+}
+
+void Model::Draw(const glm::mat4& model) const {
+	for (const auto& mesh : this->meshes) {
+		mesh.Draw(model);
+	}
+}
+
+void Model::loadModel(Engine* engine, const std::string& path) {
+	// read file via ASSIMP
+	Assimp::Importer importer;
+	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+	// check for errors
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+		std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
+		return;
+	}
+	// retrieve the directory path of the filepath
+	// directory = path.substr(0, path.find_last_of('/'));
+	const auto directory = constants::fs::path(path).parent_path();
+	// process ASSIMP's root node recursively
+	this->processNode(engine, *scene->mRootNode, *scene, directory);
+}
+
 void Model::processNode(Engine* engine, const aiNode& node, const aiScene& scene, const constants::fs::path& root_dir) {
+	// process each mesh located at the current node
 	for (unsigned int i = 0; i < node.mNumMeshes; ++i) {
-		const auto* mesh = scene.mMeshes[node.mMeshes[i]];
-		this->meshes.emplace_back(this->processMesh(engine, *mesh, scene, root_dir));
+		// the node object only contains indices to index the actual objects in the scene.
+		// the scene contains all the data, node is just to keep stuff organized (like relations between nodes).
+		const aiMesh* mesh = scene.mMeshes[node.mMeshes[i]];
+		meshes.emplace_back(processMesh(engine, *mesh, scene, root_dir));
 	}
 
+	// after we've processed all of the meshes (if any) we then recursively process each of the children nodes
 	for (unsigned int i = 0; i < node.mNumChildren; ++i) {
 		this->processNode(engine, *node.mChildren[i], scene, root_dir);
 	}
 }
 
-Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene, const constants::fs::path& root_dir) const {
+Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene, const constants::fs::path& root_dir) {
+	// data to fill
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
-	std::vector<Texture2D> meshTextures;
+	std::vector<Texture2D> textures;
 
-	auto ai_to_glm3 = [](const aiVector3D& inVector) {
+	auto ai_to_vec3 = [](const aiVector3D& inVector) {
 		glm::vec3 vector;
 		vector.x = inVector.x;
 		vector.y = inVector.y;
 		vector.z = inVector.z;
 		return vector;
 	};
-	auto ai_to_glm2 = [](const aiVector3D& inVector) {
+
+	auto ai_to_vec2 = [](const aiVector3D& inVector) {
 		glm::vec2 vector;
 		vector.x = inVector.x;
 		vector.y = inVector.y;
 		return vector;
 	};
 
-	// Walk model vertices
+	// walk through each of the mesh's vertices
 	for (unsigned int i = 0; i < mesh.mNumVertices; ++i) {
 		Vertex vertex;
-
-		vertex.Position = ai_to_glm3(mesh.mVertices[i]);
-		vertex.Normal = ai_to_glm3(mesh.mNormals[i]);
-
+		vertex.Position = ai_to_vec3(mesh.mVertices[i]);
+		vertex.Normal = ai_to_vec3(mesh.mNormals[i]);
 		// texture coordinates
 		if (mesh.mTextureCoords[0]) {// does the mesh contain texture coordinates?
 			// a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't
 			// use models where a vertex can have multiple texture coordinates so we always take the first set (0).
-			vertex.TexCoords = ai_to_glm2(mesh.mTextureCoords[0][i]);
+			vertex.TexCoords = ai_to_vec2(mesh.mTextureCoords[0][i]);
 		} else {
 			vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 		}
 
-		vertex.Tangent = ai_to_glm3(mesh.mTangents[i]);
-		vertex.Bitangent = ai_to_glm3(mesh.mBitangents[i]);
+		vertex.Tangent = ai_to_vec3(mesh.mTangents[i]);
+		vertex.Bitangent = ai_to_vec3(mesh.mBitangents[i]);
 		vertices.emplace_back(std::move(vertex));
 	}
-
+	// now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
 	for (unsigned int i = 0; i < mesh.mNumFaces; ++i) {
-		const aiFace face = mesh.mFaces[i];
+		const aiFace& face = mesh.mFaces[i];
+		// retrieve all indices of the face and store them in the indices vector
 		for (unsigned int j = 0; j < face.mNumIndices; ++j) {
-			indices.push_back(face.mIndices[j]);
+			indices.emplace_back(face.mIndices[j]);
 		}
 	}
 
-	// Process Material
+	// process materials
 	const aiMaterial* material = scene.mMaterials[mesh.mMaterialIndex];
 	// we assume a convention for sampler names in the shaders. Each diffuse texture should be named
 	// as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER.
@@ -113,49 +128,48 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 	// normal: texture_normalN
 
 	// 1. diffuse maps
-	std::vector<Texture2D> diffuseMaps = this->loadMaterialTexture(engine, *material, aiTextureType_DIFFUSE, "texture_diffuse", root_dir);
-	meshTextures.insert(meshTextures.end(), diffuseMaps.begin(), diffuseMaps.end());
-
+	std::vector<Texture2D> diffuseMaps = loadMaterialTextures(engine, *material, aiTextureType_DIFFUSE, "texture_diffuse", root_dir);
+	textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
 	// 2. specular maps
-	std::vector<Texture2D> specularMaps = this->loadMaterialTexture(engine, *material, aiTextureType_SPECULAR, "texture_specular", root_dir);
-	meshTextures.insert(meshTextures.end(), specularMaps.begin(), specularMaps.end());
-	
+	std::vector<Texture2D> specularMaps = loadMaterialTextures(engine, *material, aiTextureType_SPECULAR, "texture_specular", root_dir);
+	textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 	// 3. normal maps
-	std::vector<Texture2D> normalMaps = this->loadMaterialTexture(engine, *material, aiTextureType_HEIGHT, "texture_normal", root_dir);
-	meshTextures.insert(meshTextures.end(), normalMaps.begin(), normalMaps.end());
-	
+	std::vector<Texture2D> normalMaps = loadMaterialTextures(engine, *material, aiTextureType_HEIGHT, "texture_normal", root_dir);
+	textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 	// 4. height maps
-	std::vector<Texture2D> heightMaps = this->loadMaterialTexture(engine, *material, aiTextureType_AMBIENT, "texture_height", root_dir);
-	meshTextures.insert(meshTextures.end(), heightMaps.begin(), heightMaps.end());
+	std::vector<Texture2D> heightMaps = loadMaterialTextures(engine, *material, aiTextureType_AMBIENT, "texture_height", root_dir);
+	textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
-	Mesh finalMesh(vertices, indices, meshTextures);
+	// return a mesh object created from the extracted mesh data
+	Mesh finalMesh(vertices, indices, textures);
+	finalMesh.fragmentOutColour = this->fragmentOutColour;
 	finalMesh.diffuseDesc = this->diffuseDesc;
 	finalMesh.specularDesc = this->specularDesc;
 	finalMesh.normalDesc = this->normalDesc;
 	finalMesh.heightDesc = this->heightDesc;
-	finalMesh.fragmentOutColour = this->fragmentOutColour;
 	return finalMesh;
 }
 
-std::vector<Texture2D> Model::loadMaterialTexture(Engine* engine, const aiMaterial& mat, const aiTextureType& type, const std::string& typeName, const constants::fs::path& root_dir) const {
+// checks all material textures of a given type and loads the textures if they're not loaded yet.
+// the required info is returned as a Texture struct.
+std::vector<Texture2D> Model::loadMaterialTextures(Engine* engine, const aiMaterial& mat, const aiTextureType& type, const std::string& typeName, const constants::fs::path& root_dir) {
 	std::vector<Texture2D> materialTextures;
 	for (unsigned int i = 0; i < mat.GetTextureCount(type); ++i) {
 		aiString str;
 		mat.GetTexture(type, i, &str);
 
-        const std::string model_path = root_dir.string() + "/" + std::string(str.C_Str());
-        const std::string model_name = "model_" + model_path;
-		auto texture = engine->getResourceManager()->LoadTexture(model_path, model_name);
+		// The texture name is just the path of the file
+		const std::string tex_path = root_dir.string() + "/" + std::string(str.C_Str());
+		const std::string tex_name = "model_" + tex_path;
+		auto* resourceManager = engine->getResourceManager();
+		// Return the old texture if it is already loaded.
+		Texture2D texture = resourceManager->TextureLoaded(tex_name) ?
+			resourceManager->GetTexture(tex_name) :
+			resourceManager->LoadTexture(tex_path, tex_name, false, true); // Don't flip, generate mipmap.
+
 		texture.desc = typeName;
-		// This will automatically return the old texture if it is already loaded.
 		materialTextures.push_back(texture);
 	}
 
 	return materialTextures;
-}
-
-void Model::Draw(const glm::mat4& model) const {
-	for (const auto& mesh : this->meshes) {
-		mesh.Draw(model);
-	}
 }
