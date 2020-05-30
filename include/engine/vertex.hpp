@@ -13,4 +13,6 @@ struct Vertex {
     glm::vec3 Tangent;
     // bitangent
     glm::vec3 Bitangent;
+
+    bool has_tangents;
 };

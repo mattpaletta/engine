@@ -98,6 +98,13 @@ bool Mesh::autoCreateShader(const std::vector<std::string>& fragmentCode) {
 #endif
 }
 
+std::string Mesh::description() const {
+    return "Num Diffuse: (" + this->diffuseDesc + ") - " + std::to_string(this->diffuseNr) + "\n" +
+        "Num Specular: (" + this->specularDesc + ") - " + std::to_string(this->specularNr) + "\n" +
+        "Num Normal: (" + this->normalDesc + ") - " + std::to_string(this->normalNr) + "\n" +
+        "Num Height: (" + this->heightDesc + ") - " + std::to_string(this->heightNr) + "\n";
+}
+
 void Mesh::UpdatePerspective(Renderer3D* renderer) {
 	this->shader\
 		.use()\

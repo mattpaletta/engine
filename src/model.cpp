@@ -42,7 +42,7 @@ void Model::Draw(const glm::mat4& model) const {
 void Model::loadModel(Engine* engine, const std::string& path) {
 	// read file via ASSIMP
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    const aiScene* scene = importer.ReadFile(path, /*aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace*/ aiProcessPreset_TargetRealtime_MaxQuality);
 	// check for errors
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
@@ -105,8 +105,14 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 			vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 		}
 
-		vertex.Tangent = ai_to_vec3(mesh.mTangents[i]);
-		vertex.Bitangent = ai_to_vec3(mesh.mBitangents[i]);
+        if (mesh.HasTangentsAndBitangents()) {
+            vertex.Tangent = ai_to_vec3(mesh.mTangents[i]);
+            vertex.Bitangent = ai_to_vec3(mesh.mBitangents[i]);
+        } else {
+            vertex.Tangent = glm::vec3(0);
+            vertex.Bitangent = glm::vec3(0);
+        }
+        vertex.has_tangents = mesh.HasTangentsAndBitangents();
 		vertices.emplace_back(std::move(vertex));
 	}
 	// now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.

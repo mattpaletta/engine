@@ -44,6 +44,8 @@ public:
     void UpdatePerspective(Renderer3D* renderer);
 	void Draw(const glm::mat4& model) const;
 
+    std::string description() const;
+
 	bool autoCreateShader(const std::vector<std::string>& fragmentCode);
 
 private:
