@@ -14,5 +14,6 @@ struct Vertex {
     // bitangent
     glm::vec3 Bitangent;
 
+    bool has_textures;
     bool has_tangents;
 };

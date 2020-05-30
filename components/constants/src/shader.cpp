@@ -69,7 +69,6 @@ namespace {
             glGetProgramInfoLog(shaderProgram, info_msg_length, NULL, infoLog);
             std::cout << "ERROR::SHADER::PROGRAM::LINK_FAILED - " << infoLog << std::endl;
         }
-
         return success;
     }
 }

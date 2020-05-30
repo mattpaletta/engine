@@ -124,9 +124,27 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 		}
 	}
 
+    auto ai_to_colour = [](const aiMaterial* material, const char* k, const unsigned int& i, const unsigned int& j) {
+        aiColor3D colour (0.f,0.f,0.f);
+        material->Get(k, i, j, colour);
+        return glm::vec3(colour.r, colour.g, colour.b);
+    };
+
 	// process materials
 	const aiMaterial* material = scene.mMaterials[mesh.mMaterialIndex];
-	// we assume a convention for sampler names in the shaders. Each diffuse texture should be named
+    Material mat;
+    mat.DiffuseColour = ai_to_colour(material, AI_MATKEY_COLOR_DIFFUSE);
+    mat.AmbientColour = ai_to_colour(material, AI_MATKEY_COLOR_AMBIENT);
+    mat.SpecularColour = ai_to_colour(material, AI_MATKEY_COLOR_SPECULAR);
+    mat.EmissiveColour = ai_to_colour(material, AI_MATKEY_COLOR_EMISSIVE);
+    mat.TransparentColour = ai_to_colour(material, AI_MATKEY_COLOR_TRANSPARENT);
+    
+    material->Get(AI_MATKEY_SHININESS, mat.shininess);
+    material->Get(AI_MATKEY_TEXBLEND(aiTextureType_DIFFUSE, 0), mat.diffuse_tex_blend);
+    material->Get(AI_MATKEY_TEXBLEND(aiTextureType_SPECULAR, 0), mat.specular_tex_blend);
+    material->Get(AI_MATKEY_TEXBLEND(aiTextureType_AMBIENT, 0), mat.ambient_tex_blend);
+
+    // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
 	// as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER.
 	// Same applies to other texture as the following list summarizes:
 	// diffuse: texture_diffuseN
@@ -147,7 +165,7 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 	textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
 	// return a mesh object created from the extracted mesh data
-	Mesh finalMesh(vertices, indices, textures);
+	Mesh finalMesh(vertices, indices, textures, mat);
 	finalMesh.fragmentOutColour = this->fragmentOutColour;
 	finalMesh.diffuseDesc = this->diffuseDesc;
 	finalMesh.specularDesc = this->specularDesc;

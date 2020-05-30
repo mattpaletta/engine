@@ -8,18 +8,12 @@
 #include <constants/texture.hpp>
 #include <constants/shader.hpp>
 #include "vertex.hpp"
+#include "material.hpp"
 #include "3d_renderer.hpp"
 
 #include <string>
 #include <vector>
 #include <iostream>
-
-/*
-struct Texture {
-    unsigned int id;
-	std::string type;
-	std::string path;
-};*/
 
 class Mesh {
 public:
@@ -29,7 +23,7 @@ public:
 	std::string normalDesc;
 	std::string heightDesc;
 
-    Mesh(const std::vector<Vertex>& _vertices, const std::vector<unsigned int>& _indices, const std::vector<Texture2D>& _textures);
+    Mesh(const std::vector<Vertex>& _vertices, const std::vector<unsigned int>& _indices, const std::vector<Texture2D>& _textures, const Material& _material);
 	~Mesh();
 
 	// Not copyable
@@ -46,13 +40,14 @@ public:
 
     std::string description() const;
 
-	bool autoCreateShader(const std::vector<std::string>& fragmentCode);
+	bool autoCreateShader();
 
 private:
 	mutable Shader shader;
-
+    bool use_textures;
+    
 	std::string create_vertex_shader() const;
-	std::string create_fragment_shader(const std::vector<std::string>& fragmentCode) const;
+	std::string create_fragment_shader() const;
 
 	// The number of each texture, to bind to shader
 	unsigned int diffuseNr = 0;
@@ -60,9 +55,10 @@ private:
 	unsigned int normalNr = 0;
 	unsigned int heightNr = 0;
 
-	std::vector<Vertex>       vertices;
+	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
-	std::vector<Texture2D>      textures;
+	std::vector<Texture2D> textures;
+    Material material;
 
     unsigned int VAO;
     unsigned int VBO;
