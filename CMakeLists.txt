@@ -321,6 +321,10 @@ target_include_directories(engine PUBLIC include)
 target_include_directories(engine SYSTEM PUBLIC ${OpenAl_INCLUDE_DIRECTORIES})
 target_link_libraries(engine PUBLIC ${ENGINE_PUB_DEPS})
 target_link_libraries(engine PRIVATE ${ENGINE_PRIV_DEPS})
+
+# Optional linking to std::filesystem for gcc < 9.0
+target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:stdc++fs>)
+
 target_compile_options(engine PRIVATE "${ENGINE_EXTRA_FLAGS}")
 
 target_compile_definitions(engine PUBLIC "$<$<CONFIG:DEBUG>:DEBUG>")
