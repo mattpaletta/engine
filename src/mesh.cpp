@@ -71,7 +71,7 @@ std::string Mesh::create_fragment_shader(const std::size_t& numDirLights, const 
 
     const std::string calcDirLight_def = "vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)";
     const std::string calcDirLight_fwd = calcDirLight_def+";\n";
-    const auto calcDirLight = [&calcDirLight_def](const std::string& texture_diffuse, const std::string& texture_specular) {
+    const auto calcDirLight = [&calcDirLight_def](const std::string& final_texture_diffuse_calc, const std::string& final_texture_specular_calc) {
         return "" + calcDirLight_def + " {\n"
             "   vec3 lightDir = normalize(-light.direction);\n"
             "   // diffuse shading\n"
@@ -80,16 +80,16 @@ std::string Mesh::create_fragment_shader(const std::size_t& numDirLights, const 
             "   vec3 reflectDir = reflect(-lightDir, normal);\n"
             "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);\n"
             "   // combine results\n"
-            "   vec3 ambient = light.ambient * "+texture_diffuse+";\n"
-            "   vec3 diffuse = light.diffuse * (diff * "+texture_diffuse+");\n"
-            "   vec3 specular = light.specular * (spec * "+texture_specular+");\n"
+            "   vec3 ambient = light.ambient * "+final_texture_diffuse_calc+";\n"
+            "   vec3 diffuse = light.diffuse * (diff * "+final_texture_diffuse_calc+");\n"
+            "   vec3 specular = light.specular * (spec * "+final_texture_specular_calc+");\n"
             "   return (ambient + diffuse + specular);\n"
             "}\n";
     };
 
     const std::string calcPointLight_def = "vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)";
     const std::string calcPointLight_fwd = calcPointLight_def+";\n";
-    const auto calcPointLight = [&calcPointLight_def](const std::string& texture_diffuse, const std::string& texture_specular) {
+    const auto calcPointLight = [&calcPointLight_def](const std::string& final_texture_diffuse_calc, const std::string& final_texture_specular_calc) {
         return
             ""+calcPointLight_def+" {\n"
             "   vec3 lightDir = normalize(light.position - fragPos);\n"
@@ -102,16 +102,16 @@ std::string Mesh::create_fragment_shader(const std::size_t& numDirLights, const 
             "   float distance = length(light.position - fragPos);\n"
             "   float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));\n"
             "   // combine results\n"
-            "   vec3 ambient = light.ambient * "+texture_diffuse+";\n"
-            "   vec3 diffuse = light.diffuse * (diff * "+texture_diffuse+");\n"
-            "   vec3 specular = light.specular * (spec * "+texture_specular+");\n"
+            "   vec3 ambient = light.ambient * "+final_texture_diffuse_calc+";\n"
+            "   vec3 diffuse = light.diffuse * (diff * "+final_texture_diffuse_calc+");\n"
+            "   vec3 specular = light.specular * (spec * "+final_texture_specular_calc+");\n"
             "   return (ambient + diffuse + specular) * attenuation;\n"
             "}\n";
     };
 
     const std::string calcSpotLight_def = "vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)";
     const std::string calcSpotLight_fwd = calcSpotLight_def+";\n";
-    const auto calcSpotLight = [&calcSpotLight_def](const std::string& texture_diffuse, const std::string& texture_specular) {
+    const auto calcSpotLight = [&calcSpotLight_def](const std::string& final_texture_diffuse_calc, const std::string& final_texture_specular_calc) {
         return
             ""+calcSpotLight_def+" {\n"
             "   vec3 lightDir = normalize(light.position - fragPos);\n"
@@ -128,9 +128,9 @@ std::string Mesh::create_fragment_shader(const std::size_t& numDirLights, const 
             "   float epsilon = light.cutOff - light.outerCutOff;\n"
             "   float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);\n"
             "   // combine results\n"
-            "   vec3 ambient = light.ambient * "+texture_diffuse+";\n"
-            "   vec3 diffuse = light.diffuse * diff * "+texture_diffuse+";\n"
-            "   vec3 specular = light.specular * spec * "+texture_specular+";\n"
+            "   vec3 ambient = light.ambient * "+final_texture_diffuse_calc+";\n"
+            "   vec3 diffuse = light.diffuse * diff * "+final_texture_diffuse_calc+";\n"
+            "   vec3 specular = light.specular * spec * "+final_texture_specular_calc+";\n"
             "   return (ambient + diffuse + specular) * attenuation * intensity;\n"
             "}\n";
     };
@@ -476,7 +476,7 @@ void Mesh::Draw(const glm::mat4& model) const {
 
 	// draw mesh
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, static_cast<int>(indices.size()), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 
 	// always good practice to set everything back to defaults once configured.
@@ -497,10 +497,10 @@ void Mesh::Init() {
 	// A great thing about structs is that their memory layout is sequential for all its items.
 	// The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
 	// again translates to 3/2 floats which translates to a byte array.
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, static_cast<int>(vertices.size() * sizeof(Vertex)), &vertices[0], GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<int>(indices.size() * sizeof(unsigned int)), &indices[0], GL_STATIC_DRAW);
 
 	// set the vertex attribute pointers
     GLuint i = 0;

@@ -657,11 +657,11 @@ void AudioEngine::Shutdown() {
     this->isShutdown = true;
 }
 
-void AudioEngine::LoadSound(const std::string& strSoundName, bool bLooping) {
+void AudioEngine::LoadSound([[maybe_unused]] const std::string& strSoundName, [[maybe_unused]] bool bLooping) {
     this->sounds.emplace(strSoundName, std::make_unique<SoundDefinition>()); // Create default SoundDefinition
+#if ENGINE_ENABLE_AUDIO
     auto* sound = this->sounds.at(strSoundName).get();
 
-#if ENGINE_ENABLE_AUDIO
     sound->buffer = openal::LoadSound(strSoundName);
     alGetError(); // Clear Error
 
@@ -693,18 +693,18 @@ void AudioEngine::LoadSound(const std::string& strSoundName, bool bLooping) {
 #endif
 }
 
-void AudioEngine::Play(const std::string& strSoundName) {
-    auto* thisSound = this->sounds.at(strSoundName).get();
+void AudioEngine::Play([[maybe_unused]] const std::string& strSoundName) {
 #if ENGINE_ENABLE_AUDIO
-        alSourceStop(thisSound->source);
-        alSourcePlay(thisSound->source);
+    auto* thisSound = this->sounds.at(strSoundName).get();
+    alSourceStop(thisSound->source);
+    alSourcePlay(thisSound->source);
 #endif
 }
 
 void AudioEngine::UnLoadSound(const std::string& strSoundName) {
+#if ENGINE_ENABLE_AUDIO
     auto& thisSound = this->sounds.at(strSoundName);
 
-#if ENGINE_ENABLE_AUDIO
     /* All done. Delete resources */
     alDeleteSources(1, &thisSound->source);
     alDeleteBuffers(1, &thisSound->buffer);
@@ -712,7 +712,7 @@ void AudioEngine::UnLoadSound(const std::string& strSoundName) {
     this->sounds.erase(strSoundName);
 }
 
-bool AudioEngine::IsPlaying(const std::string& strSoundName) const {
+bool AudioEngine::IsPlaying([[maybe_unused]] const std::string& strSoundName) const {
 #if ENGINE_ENABLE_AUDIO
     return this->isLoaded(strSoundName) && this->sounds.at(strSoundName)->state == AL_PLAYING;
 #else

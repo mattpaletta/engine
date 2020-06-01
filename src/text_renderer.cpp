@@ -75,7 +75,7 @@ void TextRenderer::Init([[maybe_unused]] Engine* engine, [[maybe_unused]] const 
 #endif
 }
 
-bool TextRenderer::isFontLoaded(const std::string& font, const unsigned int& fontSize) {
+bool TextRenderer::isFontLoaded([[maybe_unused]] const std::string& font, [[maybe_unused]] const unsigned int& fontSize) {
 #if ENGINE_ENABLE_TEXT
 	return this->currentFont == font && this->currentFontSize == fontSize;
 #else
@@ -83,7 +83,7 @@ bool TextRenderer::isFontLoaded(const std::string& font, const unsigned int& fon
 #endif
 }
 
-void TextRenderer::Load(const std::string& font, const unsigned int& fontSize) {
+void TextRenderer::Load([[maybe_unused]] const std::string& font, [[maybe_unused]] const unsigned int& fontSize) {
 #if ENGINE_ENABLE_TEXT
 	if (this->isFontLoaded(font, fontSize)) {
 		// Font is already loaded, do nothing

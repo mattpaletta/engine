@@ -167,7 +167,7 @@ void ResourceManager::loadImageFile(unsigned char** data, ScreenSize* size, int*
     }
 #endif
 
-    // stbi_set_flip_vertically_on_load(flip_vertically);
+    stbi_set_flip_vertically_on_load(flip_vertically);
     *data = stbi_load(file.c_str(), &size->WIDTH, &size->HEIGHT, nrChannels, STBI_default);
 
 #if ENGINE_DEBUG

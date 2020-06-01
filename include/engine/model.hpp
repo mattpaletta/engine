@@ -30,7 +30,7 @@ public:
 
 private:
 	std::vector<Mesh> meshes;
-    const bool gammaCorrection;
+//    const bool gammaCorrection;
     std::size_t prevLightCount = 0;
 
     void loadModel(Engine* engine, const std::string& path);

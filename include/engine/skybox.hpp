@@ -17,11 +17,12 @@ private:
 	mutable Shader shader;
 	mutable Texture2D texture;
 
+    using GameObject::Draw;
 public:
 	Skybox();
 	~Skybox();
 
 	void Init(Engine* engine, const CubeMap& cubemap);
 
-	void Draw(Renderer3D* renderer) const noexcept;
+	virtual void Draw(Renderer3D* renderer) const noexcept;
 };

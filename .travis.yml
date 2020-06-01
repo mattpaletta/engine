@@ -78,29 +78,6 @@ matrix:
           - libglfw3-dev
 # Test on OSX
     - os: osx
-      if: branch = master
-      osx_image: xcode11
-      compiler: clang
-      env:
-      - BUILD=Debug
-      - env_cmake_cxx_compiler=clang++
-      - env_cmake_c_compiler=clang
-      - enable_audio=ON
-      - enable_vr=OFF
-      - enable_text=ON
-      - enable_animation=ON
-      - enable_json=ON
-      - enable_min_game_object=ON
-      - enable_multithreaded=ON
-      - enable_debug=ON
-      - enable_debug_vr=ON
-      addons:
-        homebrew:
-          packages:
-            - glfw3
-            - cmake
-          update: true
-    - os: osx
       osx_image: xcode11.4
       compiler: clang
       env:
@@ -174,60 +151,6 @@ matrix:
           - ubuntu-toolchain-r-test
           packages:
           - g++-9
-          - freeglut3
-          - freeglut3-dev
-          - mesa-utils
-          - libglfw3
-          - libglfw3-dev
-    - os: linux
-      if: branch = master
-      compiler: clang++-8
-      env:
-      - BUILD=Debug
-      - env_cmake_cxx_compiler=clang++-8
-      - env_cmake_c_compiler=clang-8
-      - enable_audio=ON
-      - enable_vr=ON
-      - enable_text=ON
-      - enable_animation=ON
-      - enable_json=ON
-      - enable_min_game_object=ON
-      - enable_multithreaded=ON
-      - enable_debug=ON
-      - enable_debug_vr=ON
-      addons:
-        apt:
-          update: true
-          sources:
-          - ubuntu-toolchain-r-test
-          packages:
-          - freeglut3
-          - freeglut3-dev
-          - mesa-utils
-          - libglfw3
-          - libglfw3-dev
-    - os: linux
-      if: branch = master
-      compiler: clang++-9
-      env:
-      - BUILD=Debug
-      - env_cmake_cxx_compiler=clang++-9
-      - env_cmake_c_compiler=clang-9
-      - enable_audio=ON
-      - enable_vr=ON
-      - enable_text=ON
-      - enable_animation=ON
-      - enable_json=ON
-      - enable_min_game_object=ON
-      - enable_multithreaded=ON
-      - enable_debug=ON
-      - enable_debug_vr=ON
-      addons:
-        apt:
-          update: true
-          sources:
-          - ubuntu-toolchain-r-test
-          packages:
           - freeglut3
           - freeglut3-dev
           - mesa-utils
@@ -407,7 +330,7 @@ script:
       wget -q https://cmake.org/files/v${CMAKE_MAJOR_VERSION}/cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh && mkdir /opt/cmake && sh ./cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh --prefix=/opt/cmake --skip-license && sudo ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake && rm ./cmake-${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}-Linux-x86_64.sh && export PATH=/usr/local/bin:$PATH;
     fi;
   - if [[ $TRAVIS_OS_NAME == "windows" ]]; then
-      choco upgrade cmake -y --version=3.17.2
+      choco upgrade cmake -y --version=3.17.2;
     fi;
   - cd build
   - cmake -DCMAKE_CXX_COMPILER=${env_cmake_cxx_compiler} -DCMAKE_C_COMPILER=${env_cmake_c_compiler} -DCMAKE_BUILD_TYPE=${BUILD} -DENGINE_ENABLE_AUDIO=${enable_audio} -DENGINE_ENABLE_VR=${enable_vr} -DENGINE_ENABLE_TEXT=${enable_text} -DENGINE_ENABLE_ANIMATION=${enable_animation} -DENGINE_ENABLE_JSON=${enable_json} -DENGINE_MIN_GAME_OBJECT=${enable_min_game_object} -DENGINE_ENABLE_MULTITHREADED=${enable_multithreaded} -DENGINE_DEBUG=${enable_debug} -DENGINE_DEBUG_VR=${enable_debug_vr} -DENGINE_EXTRA_COMPILER_CHECKS=ON -DENGINE_WERROR=ON ..
