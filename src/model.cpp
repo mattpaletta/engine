@@ -3,7 +3,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 
-Model::Model(Engine* engine, const std::string& path, bool gamma) : gammaCorrection(gamma) {
+Model::Model(Engine* engine, const std::string& path) {
 	this->loadModel(engine, path);
 }
 

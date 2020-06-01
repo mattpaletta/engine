@@ -18,7 +18,7 @@ public:
 	std::string heightDesc = "texture_height";
 
     // constructor, expects a filepath to a 3D model.
-    Model(Engine* engine, const std::string& path, bool gamma = false);
+    Model(Engine* engine, const std::string& path);
 	~Model();
 
 	Mesh& getMesh(const std::size_t& i);
