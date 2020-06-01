@@ -19,6 +19,7 @@
 #include "resource.hpp"
 #include "scheduler.hpp"
 #include "3d_renderer.hpp"
+#include "light_manager.hpp"
 
 #include <constants/size.hpp>
 #include <constants/screen_size.hpp>
@@ -29,7 +30,8 @@ private:
 	std::shared_ptr<Game> game = nullptr;
 
 	std::unique_ptr<Renderer3D> renderer3d = nullptr;
-	std::unique_ptr<SpriteRenderer> spriteRenderer = nullptr;
+    LightManager lightManager;
+    std::unique_ptr<SpriteRenderer> spriteRenderer = nullptr;
 	AudioEngine audioEngine;
 	std::unique_ptr<TextRenderer> textRenderer = nullptr;
 	ResourceManager resourceManager;
@@ -81,8 +83,11 @@ public:
 	// Debug
 	void setClearColour(const Colour& colour);
 
+
 	// 3D
 	Renderer3D* get3DRenderer();
+    // Lighting (3D)
+    LightManager* getLightManager();
 
 	// Sprites
 	void setCustomSpriteRendering(const std::string& resourceName);

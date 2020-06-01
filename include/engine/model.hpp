@@ -23,14 +23,15 @@ public:
 
 	Mesh& getMesh(const std::size_t& i);
 	std::size_t numMeshes() const;
-	void Init();
+	void Init(Engine* engine);
 	using GameObject::Draw;
-	void UpdatePerspective(Renderer3D* renderer);
+	void UpdatePerspective(Engine* engine);
     void Draw(const glm::mat4& model) const;
 
 private:
 	std::vector<Mesh> meshes;
     const bool gammaCorrection;
+    std::size_t prevLightCount = 0;
 
     void loadModel(Engine* engine, const std::string& path);
     void processNode(Engine* engine, const aiNode& node, const aiScene& scene, const constants::fs::path& root_dir);

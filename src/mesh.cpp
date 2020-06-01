@@ -1,4 +1,5 @@
 #include "engine/mesh.hpp"
+#include "engine/engine.hpp"
 
 unsigned int countNumTextureType(const std::vector<Texture2D>& textures, const std::string& texType) {
 	unsigned int count = 0;
@@ -43,9 +44,9 @@ std::string Mesh::create_vertex_shader() const {
     return shader_code;
 }
 
-std::string Mesh::create_fragment_shader() const {
+std::string Mesh::create_fragment_shader(const std::size_t& numDirLights, const std::size_t& numPointLights, const std::size_t& numSpotLights) const {
     const std::string texture_import = !this->use_textures ? "" : "in vec2 "+texture_pass_name+";\n";
-
+    
     std::string texture_shaders = "";
     if (this->use_textures) {
         for (unsigned int i = 1; i <= this->diffuseNr; ++i) {
@@ -61,6 +62,80 @@ std::string Mesh::create_fragment_shader() const {
             texture_shaders += "uniform sampler2D " + this->heightDesc + std::to_string(i) + ";\n";
         }
     }
+    const std::string texture_diffuse = this->use_textures ?
+        "mix(material.diffuse, texture(texture_diffuse1, "+texture_pass_name+").xyz, material.diffuseMix)" :
+        "material.diffuse";
+    const std::string texture_specular = this->use_textures ?
+        "mix(material.specular, texture(texture_specular1, "+texture_pass_name+").xyz, material.specularMix)" :
+        "material.specular";
+
+    const std::string calcDirLight_def = "vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)";
+    const std::string calcDirLight_fwd = calcDirLight_def+";\n";
+    const auto calcDirLight = [&calcDirLight_def](const std::string& texture_diffuse, const std::string& texture_specular) {
+        return "" + calcDirLight_def + " {\n"
+            "   vec3 lightDir = normalize(-light.direction);\n"
+            "   // diffuse shading\n"
+            "   float diff = max(dot(normal, lightDir), 0.0);\n"
+            "   // specular shading\n"
+            "   vec3 reflectDir = reflect(-lightDir, normal);\n"
+            "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);\n"
+            "   // combine results\n"
+            "   vec3 ambient = light.ambient * "+texture_diffuse+";\n"
+            "   vec3 diffuse = light.diffuse * (diff * "+texture_diffuse+");\n"
+            "   vec3 specular = light.specular * (spec * "+texture_specular+");\n"
+            "   return (ambient + diffuse + specular);\n"
+            "}\n";
+    };
+
+    const std::string calcPointLight_def = "vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)";
+    const std::string calcPointLight_fwd = calcPointLight_def+";\n";
+    const auto calcPointLight = [&calcPointLight_def](const std::string& texture_diffuse, const std::string& texture_specular) {
+        return
+            ""+calcPointLight_def+" {\n"
+            "   vec3 lightDir = normalize(light.position - fragPos);\n"
+            "   // diffuse shading\n"
+            "   float diff = max(dot(normal, lightDir), 0.0);"
+            "   // specular shading\n"
+            "   vec3 reflectDir = reflect(-lightDir, normal);\n"
+            "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);\n"
+            "   // attenuation\n"
+            "   float distance = length(light.position - fragPos);\n"
+            "   float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));\n"
+            "   // combine results\n"
+            "   vec3 ambient = light.ambient * "+texture_diffuse+";\n"
+            "   vec3 diffuse = light.diffuse * (diff * "+texture_diffuse+");\n"
+            "   vec3 specular = light.specular * (spec * "+texture_specular+");\n"
+            "   return (ambient + diffuse + specular) * attenuation;\n"
+            "}\n";
+    };
+
+    const std::string calcSpotLight_def = "vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)";
+    const std::string calcSpotLight_fwd = calcSpotLight_def+";\n";
+    const auto calcSpotLight = [&calcSpotLight_def](const std::string& texture_diffuse, const std::string& texture_specular) {
+        return
+            ""+calcSpotLight_def+" {\n"
+            "   vec3 lightDir = normalize(light.position - fragPos);\n"
+            "   // diffuse shading\n"
+            "   float diff = max(dot(normal, lightDir), 0.0);\n"
+            "   // specular shading\n"
+            "   vec3 reflectDir = reflect(-lightDir, normal);\n"
+            "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);\n"
+            "   // attenuation\n"
+            "   float distance = length(light.position - fragPos);\n"
+            "   float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));\n"
+            "   // spotlight intensity\n"
+            "   float theta = dot(lightDir, normalize(-light.direction));\n"
+            "   float epsilon = light.cutOff - light.outerCutOff;\n"
+            "   float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);\n"
+            "   // combine results\n"
+            "   vec3 ambient = light.ambient * "+texture_diffuse+";\n"
+            "   vec3 diffuse = light.diffuse * diff * "+texture_diffuse+";\n"
+            "   vec3 specular = light.specular * spec * "+texture_specular+";\n"
+            "   return (ambient + diffuse + specular) * attenuation * intensity;\n"
+            "}\n";
+    };
+
+    // DEFINE LIGHTING & MATERIAL STRUCTS
     const std::string material_struct =
         "struct Material {\n"
         "   vec3 ambient;\n"
@@ -73,69 +148,122 @@ std::string Mesh::create_fragment_shader() const {
         "   float diffuseMix;\n"
         "   float specularMix;\n"
         "};\n";
-    const std::string light_struct =
-        "struct Light {\n"
-        "    vec3 position;\n"
-        "    vec3 ambient;\n"
-        "    vec3 diffuse;\n"
-        "    vec3 specular;\n"
+    const std::string direction_light_struct =
+        "struct DirLight {\n"
+        "   vec3 direction;\n"
+        "\n"
+        "   vec3 ambient;\n"
+        "   vec3 diffuse;\n"
+        "   vec3 specular;\n"
+        "};\n";
+    const std::string point_light_struct =
+        "struct PointLight {\n"
+        "   vec3 position;\n"
+        "\n"
+        "   float constant;\n"
+        "   float linear;\n"
+        "   float quadratic;\n"
+        "\n"
+        "   vec3 ambient;\n"
+        "   vec3 diffuse;\n"
+        "   vec3 specular;\n"
+        "};\n";
+    const std::string spotlight_light_struct =
+        "struct SpotLight {\n"
+        "   vec3 position;\n"
+        "   vec3 direction;\n"
+        "   float cutOff;\n"
+        "   float outerCutOff;\n"
+        "   \n"
+        "   float constant;\n"
+        "   float linear;\n"
+        "   float quadratic;\n"
+        "\n"
+        "   vec3 ambient;\n"
+        "   vec3 diffuse;\n"
+        "   vec3 specular;\n"
         "};\n";
 
+    const std::string num_dir_lights_def = "#define NR_DIR_LIGHTS " + std::to_string(numDirLights) + "\n";
+    const std::string num_point_lights_def = "#define NR_POINT_LIGHTS " + std::to_string(numPointLights) + "\n";
+    const std::string num_spot_lights_def = "#define NR_SPOT_LIGHTS " + std::to_string(numSpotLights) + "\n";
+
+    // START CONSTRUCTING SHADER
     const std::string shader_begin =
         opengl_version +
         material_struct +
-        light_struct +
         "out vec4 "+this->fragmentOutColour+";\n"
         "\n"
         "in vec3 FragPos;\n"
         "in vec3 Normal;\n"
         "\n"
-        ""+texture_import+"\n"
-        "\n"
+        ""+texture_import+"\n";
+
+    std::string lighting_defs = "";
+    std::string lighting_count_defs = "";
+    std::string uniform_defs =
         "uniform vec3 viewPos;\n"
-        "uniform Material material;\n"
-        "uniform Light light;\n"
-        "\n";
-    // TODO: Combine texture w ambient colour.
+        "uniform Material material;\n";
+    std::string lighting_calc = "";
+    std::string lighting_fwd_defs = "";
+    std::string lighting_funcs = "";
 
-    // ambient
-    const std::string calculate_ambient =
-        "   vec3 ambient = light.ambient * material.ambient;\n";
+    if (numDirLights > 0) {
+        lighting_defs += direction_light_struct;
+        lighting_count_defs += num_dir_lights_def;
+        uniform_defs += "uniform DirLight dirLights[NR_DIR_LIGHTS];\n";
+        lighting_calc +=
+            "   for (int i = 0; i < NR_DIR_LIGHTS; i++) {\n"
+            "      result += CalcDirLight(dirLights[i], norm, viewDir);\n"
+            "   }\n";
+        lighting_fwd_defs += calcDirLight_fwd;
+        lighting_funcs += calcDirLight(texture_diffuse, texture_specular);
+    }
 
-    const std::string texture_diffuse = this->use_textures ?
-        "mix(material.diffuse, texture(texture_diffuse1, "+texture_pass_name+").xyz, material.diffuseMix)" :
-        "material.diffuse";
-    const std::string calculate_diffuse =
-        "   vec3 norm = normalize(Normal);\n"
-        "   vec3 lightDir = normalize(light.position - FragPos);\n"
-        "   float diff = max(dot(norm, lightDir), 0.0);\n"
-        "   vec3 diffuse = light.diffuse * (diff * "+texture_diffuse+");\n";
+    if (numPointLights > 0) {
+        lighting_defs += point_light_struct;
+        lighting_count_defs += num_point_lights_def;
+        uniform_defs += "uniform PointLight pointLights[NR_POINT_LIGHTS];\n";
+        lighting_calc +=
+            "   for (int i = 0; i < NR_POINT_LIGHTS; i++) {\n"
+            "      result += CalcPointLight(pointLights[i], norm, FragPos, viewDir);\n"
+            "   }\n";
+        lighting_fwd_defs += calcPointLight_fwd;
+        lighting_funcs += calcPointLight(texture_diffuse, texture_specular);
+    }
 
-    // specular
-    const std::string texture_specular = this->use_textures ?
-        "mix(material.specular, texture(texture_specular1, "+texture_pass_name+").xyz, material.specularMix)" :
-        "material.specular";
-    const std::string calculate_specular =
-        "   vec3 viewDir = normalize(viewPos - FragPos);\n"
-        "   vec3 reflectDir = reflect(-lightDir, norm);\n"
-        "   float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);\n"
-        "   vec3 specular = light.specular * (spec * "+texture_specular+");\n";
-
-    const std::string calculate_final_lighting =
-        "   vec3 result = ambient + diffuse + specular;\n"
-        "   "+this->fragmentOutColour+" = vec4(result, 1.0);";
+    if (numSpotLights > 0) {
+        lighting_defs += spotlight_light_struct;
+        lighting_count_defs += num_spot_lights_def;
+        uniform_defs += "uniform SpotLight spotLights[NR_SPOT_LIGHTS];\n";
+        lighting_calc +=
+            "   for (int i = 0; i < NR_SPOT_LIGHTS; i++) {\n"
+            "      result += CalcSpotLight(spotLights[i], norm, FragPos, viewDir);\n"
+            "   }\n";
+        lighting_fwd_defs += calcSpotLight_fwd;
+        lighting_funcs += calcSpotLight(texture_diffuse, texture_specular);
+    }
 
     const std::string shader_main =
         "void main() {\n"
-        ""+calculate_ambient+"\n"
-        ""+calculate_diffuse+"\n"
-        ""+calculate_specular+"\n"
-        ""+calculate_final_lighting+"\n"
+        "   vec3 norm = normalize(Normal);\n"
+        "   vec3 viewDir = normalize(viewPos - FragPos);\n"
+        "   vec3 result = vec3(0.0, 0.0, 0.0);\n"
+        ""+lighting_calc+"\n"
+        "   "+this->fragmentOutColour+" = vec4(result, 1.0);\n"
         "}\n";
     return
         shader_begin+
+        lighting_defs+
+        lighting_count_defs+
+        uniform_defs+
         texture_shaders+
-        shader_main;
+        // Fwd Declare lights
+        lighting_fwd_defs+
+        // Call main
+        shader_main +
+        // Define functions.
+        lighting_funcs;
 }
 
 Mesh::Mesh(const std::vector<Vertex>& _vertices, const std::vector<unsigned int>& _indices, const std::vector<Texture2D>& _textures, const Material& _material) :  use_textures(_textures.size() > 0), vertices(_vertices), indices(_indices), textures(_textures), material(_material) {}
@@ -151,28 +279,100 @@ void Mesh::Cleanup() {
 	glDeleteBuffers(1, &this->EBO);
 }
 
-bool Mesh::autoCreateShader() {
+bool Mesh::autoCreateShader(Engine* engine) {
 	// Recount texture types.
 	this->diffuseNr = countNumTextureType(this->textures, this->diffuseDesc);
 	this->specularNr = countNumTextureType(this->textures, this->specularDesc);
 	this->normalNr = countNumTextureType(this->textures, this->normalDesc);
 	this->heightNr = countNumTextureType(this->textures, this->heightDesc);
 
+    // dir, point, spotlight, flashlight
+    const auto dirCount = engine->getLightManager()->getDirLights().size();
+    const auto pointCount = engine->getLightManager()->getPointLights().size();
+    const auto spotlightCount = engine->getLightManager()->getSpotLight().size();
+    const auto flashlightCount = engine->getLightManager()->getFlashLight().size();
+
 	const std::string vertex_code = this->create_vertex_shader();
-	const std::string fragment_code = this->create_fragment_shader();
-	this->shader = Shader(vertex_code, fragment_code);
+    // Flashlights are implemented as spotlights.
+    const std::string fragment_code = this->create_fragment_shader(dirCount, pointCount, spotlightCount + flashlightCount);
+
+    this->shader = Shader(vertex_code, fragment_code);
+    const bool is_valid = this->shader.valid();
+
 #if ENGINE_DEBUG
-	const bool is_valid = this->shader.valid();
 	if (is_valid) {
 		std::cout << "Shader compiled successfully" << std::endl;
 	} else {
 		std::cout << "Computed Shader::VERTEX --" << "\n" << vertex_code << "\n -- END VERTEX" << std::endl;
 		std::cout << "Computed Shader::FRAGMENT --" << "\n" << fragment_code << "\n -- END FRAGMENT" << std::endl;
 	}
-	return is_valid;
-#else
-	return this->shader.valid();
 #endif
+    if (is_valid) {
+        // Set light properties.
+        this->shader.use();
+
+        for (std::size_t i = 0; i < dirCount; ++i) {
+            const auto dirLight = engine->getLightManager()->getDirLights().at(i);
+            this->shader.setVec3("dirLights["+std::to_string(i)+"].direction", dirLight.direction);
+
+            this->shader.setVec3("dirLights["+std::to_string(i)+"].ambient", dirLight.ambient);
+            this->shader.setVec3("dirLights["+std::to_string(i)+"].diffuse", dirLight.diffuse);
+            this->shader.setVec3("dirLights["+std::to_string(i)+"].specular", dirLight.specular);
+        }
+
+        for (std::size_t i = 0; i < pointCount; ++i) {
+            const auto pointLight = engine->getLightManager()->getPointLights().at(i);
+            this->shader.setVec3("pointLights["+std::to_string(i)+"].position", pointLight.position);
+
+            this->shader.setFloat("pointLights["+std::to_string(i)+"].constant", pointLight.constant);
+            this->shader.setFloat("pointLights["+std::to_string(i)+"].linear", pointLight.linear);
+            this->shader.setFloat("pointLights["+std::to_string(i)+"].quadratic", pointLight.quadratic);
+
+            this->shader.setVec3("pointLights["+std::to_string(i)+"].ambient", pointLight.ambient);
+            this->shader.setVec3("pointLights["+std::to_string(i)+"].diffuse", pointLight.diffuse);
+            this->shader.setVec3("pointLights["+std::to_string(i)+"].specular", pointLight.specular);
+        }
+
+        for (std::size_t i = 0; i < spotlightCount + flashlightCount; ++i) {
+            // First half is spotlights, then flashlights.
+            if (i < spotlightCount) {
+                const auto index = i;
+                const auto spotLight = engine->getLightManager()->getSpotLight().at(index);
+
+                this->shader.setVec3("spotLights["+std::to_string(i)+"].position", spotLight.position);
+                this->shader.setVec3("spotLights["+std::to_string(i)+"].direction", spotLight.direction);
+                this->shader.setFloat("spotLights["+std::to_string(i)+"].cutOff", spotLight.cutOff);
+                this->shader.setFloat("spotLights["+std::to_string(i)+"].outerCutOff", spotLight.outerCutOff);
+
+                this->shader.setFloat("spotLights["+std::to_string(i)+"].constant", spotLight.constant);
+                this->shader.setFloat("spotLights["+std::to_string(i)+"].linear", spotLight.linear);
+                this->shader.setFloat("spotLights["+std::to_string(i)+"].quadratic", spotLight.quadratic);
+
+                this->shader.setVec3("spotLights["+std::to_string(i)+"].ambient", spotLight.ambient);
+                this->shader.setVec3("spotLights["+std::to_string(i)+"].diffuse", spotLight.diffuse);
+                this->shader.setVec3("spotLights["+std::to_string(i)+"].specular", spotLight.specular);
+            } else {
+                // Update flashlights
+                const auto index = i - spotlightCount;
+                const auto flashLight = engine->getLightManager()->getFlashLight().at(index);
+
+                this->shader.setVec3("flashLights["+std::to_string(i)+"].position", flashLight.position);
+                this->shader.setVec3("flashLights["+std::to_string(i)+"].direction", flashLight.direction);
+                this->shader.setFloat("flashLights["+std::to_string(i)+"].cutOff", flashLight.cutOff);
+                this->shader.setFloat("flashLights["+std::to_string(i)+"].outerCutOff", flashLight.outerCutOff);
+
+                this->shader.setFloat("flashLights["+std::to_string(i)+"].constant", flashLight.constant);
+                this->shader.setFloat("flashLights["+std::to_string(i)+"].linear", flashLight.linear);
+                this->shader.setFloat("flashLights["+std::to_string(i)+"].quadratic", flashLight.quadratic);
+
+                this->shader.setVec3("flashLights["+std::to_string(i)+"].ambient", flashLight.ambient);
+                this->shader.setVec3("flashLights["+std::to_string(i)+"].diffuse", flashLight.diffuse);
+                this->shader.setVec3("flashLights["+std::to_string(i)+"].specular", flashLight.specular);
+            }
+        }
+    }
+
+    return is_valid;
 }
 
 std::string Mesh::description() const {
@@ -182,17 +382,45 @@ std::string Mesh::description() const {
         "Num Height: (" + this->heightDesc + ") - " + std::to_string(this->heightNr) + "\n";
 }
 
-void Mesh::UpdatePerspective(Renderer3D* renderer) {
+void Mesh::UpdatePerspective(Engine* engine) {
 	this->shader\
 		.use()\
-		.setMat4("projection", renderer->getProjection())\
-        .setMat4("view", renderer->getView());
+		.setMat4("projection", engine->get3DRenderer()->getProjection())\
+        .setMat4("view", engine->get3DRenderer()->getView())\
+        .setVec3("viewPos", engine->get3DRenderer()->getCameraPos());
 
-    // TODO: pass lighting & camera into mesh.
-    const glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
-    this->shader\
-        .setVec3("light.position", lightPos)\
-        .setVec3("viewPos", renderer->getCameraPos());
+    // Update light position
+    const auto dirCount = engine->getLightManager()->getDirLights().size();
+    const auto pointCount = engine->getLightManager()->getPointLights().size();
+    const auto spotlightCount = engine->getLightManager()->getSpotLight().size();
+    const auto flashlightCount = engine->getLightManager()->getFlashLight().size();
+
+    for (std::size_t i = 0; i < dirCount; ++i) {
+        const auto dirLight = engine->getLightManager()->getDirLights().at(i);
+        this->shader.setVec3("dirLights["+std::to_string(i)+"].direction", dirLight.direction);
+    }
+
+    for (std::size_t i = 0; i < pointCount; ++i) {
+        const auto pointLight = engine->getLightManager()->getPointLights().at(i);
+        this->shader.setVec3("pointLights["+std::to_string(i)+"].position", pointLight.position);
+    }
+
+    for (std::size_t i = 0; i < spotlightCount + flashlightCount; ++i) {
+        // First half is spotlights, then flashlights.
+        if (i < spotlightCount) {
+            const auto index = i;
+            const auto spotLight = engine->getLightManager()->getSpotLight().at(index);
+
+            this->shader.setVec3("spotLights["+std::to_string(i)+"].position", spotLight.position);
+            this->shader.setVec3("spotLights["+std::to_string(i)+"].direction", spotLight.direction);
+        } else {
+            const auto index = i - spotlightCount;
+            const auto flashLight = engine->getLightManager()->getFlashLight().at(index);
+
+            this->shader.setVec3("flashLights["+std::to_string(i)+"].position", flashLight.position);
+            this->shader.setVec3("flashLights["+std::to_string(i)+"].direction", flashLight.direction);
+        }
+    }
 }
 
 // render the mesh

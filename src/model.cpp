@@ -21,16 +21,32 @@ std::size_t Model::numMeshes() const {
 		return this->meshes.size();
 }
 
-void Model::Init() {
-	for (auto& mesh : this->meshes) {
+void Model::Init(Engine* engine) {
+    for (auto& mesh : this->meshes) {
+        mesh.autoCreateShader(engine);
+    }
+
+    for (auto& mesh : this->meshes) {
 		mesh.Init();
 	}
 }
 
-void Model::UpdatePerspective(Renderer3D* renderer) {
+void Model::UpdatePerspective(Engine* engine) {
+    // Determine light count just once.
+    const std::size_t currentLightCount = engine->getLightManager()->getLightCount();
 	for (auto& mesh : this->meshes) {
-		mesh.UpdatePerspective(renderer);
+        if (this->prevLightCount != currentLightCount) {
+            // Regenerate the shader.
+            mesh.autoCreateShader(engine);
+        }
+		mesh.UpdatePerspective(engine);
 	}
+    prevLightCount = currentLightCount;
+#if ENGINE_DEBUG
+    if (currentLightCount == 0) {
+        std::cerr << "WARNING::MODEL::No lights in scene." << std::endl;
+    }
+#endif
 }
 
 void Model::Draw(const glm::mat4& model) const {

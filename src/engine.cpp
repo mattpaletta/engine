@@ -243,6 +243,10 @@ Renderer3D* Engine::get3DRenderer() {
     }
 }
 
+LightManager* Engine::getLightManager() {
+    return &this->lightManager;
+}
+
 void Engine::enableSpriteRendering(const bool is_enabled) {
     if (is_enabled) {
         this->spriteRenderer = std::make_unique<SpriteRenderer>();
