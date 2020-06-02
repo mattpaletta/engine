@@ -86,7 +86,7 @@ if (ENGINE_EXTRA_COMPILER_CHECKS)
 	else()
 		# -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -Wdouble-promotion -Wshadow -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing -ansi
 		add_supported_cxx_flags("-Wall")
-		add_supported_cxx_flags("-Wextra") 
+		add_supported_cxx_flags("-Wextra")
 		add_supported_cxx_flags("-Wconversion")
 		add_supported_cxx_flags("-Wunreachable-code")
 		add_supported_cxx_flags("-Wuninitialized")
@@ -195,7 +195,7 @@ if (WIN32)
 		SET(ASSIMP_MSVC_VERSION "vc141")
     ENDIF()
 	get_property(assimp_BINARY_DIR GLOBAL PROPERTY assimp_BINARY_DIR)
-	add_custom_target(EngineUpdateAssimpLibsDebugSymbolsAndDLLs 
+	add_custom_target(EngineUpdateAssimpLibsDebugSymbolsAndDLLs
 		COMMAND ${CMAKE_COMMAND} -E copy ${assimp_BINARY_DIR}/code/Debug/assimp-${ASSIMP_MSVC_VERSION}-mt.dll ${CMAKE_BINARY_DIR}/assimp-${ASSIMP_MSVC_VERSION}-mt.dll
 		DEPENDS assimp::assimp
 		VERBATIM)
@@ -324,7 +324,7 @@ target_link_libraries(engine PRIVATE ${ENGINE_PRIV_DEPS})
 
 # Optional linking to std::filesystem for gcc < 9.0
 target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:stdc++fs>)
-target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>, 11.0>>:stdc++fs>)
+target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,11.0>>:stdc++fs>)
 
 target_compile_options(engine PRIVATE "${ENGINE_EXTRA_FLAGS}")
 
