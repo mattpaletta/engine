@@ -284,8 +284,8 @@ else()
 	target_compile_definitions(engine PUBLIC "-DENGINE_OS=2")
 endif()
 
-set(ENGINE_PRIV_DEPS stb_image ${GLFW3_LIBRARY})
-set(ENGINE_PUB_DEPS glad glm OpenGL::GL
+set(ENGINE_PRIV_DEPS "")
+set(ENGINE_PUB_DEPS glad glm OpenGL::GL stb_image ${GLFW3_LIBRARY}
 	# Add all components
 	constants
 	assimp::assimp
@@ -321,6 +321,7 @@ target_include_directories(engine PUBLIC include)
 target_include_directories(engine SYSTEM PUBLIC ${OpenAl_INCLUDE_DIRECTORIES})
 target_link_libraries(engine PUBLIC ${ENGINE_PUB_DEPS})
 target_link_libraries(engine PRIVATE ${ENGINE_PRIV_DEPS})
+target_link_libraries(engine INTERFACE ${CMAKE_DL_LIBS})
 
 # Optional linking to std::filesystem for gcc < 9.0
 target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:stdc++fs>)
