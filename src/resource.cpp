@@ -40,7 +40,7 @@ Shader& ResourceManager::GetShader(const std::string& name) {
     return Shaders.at(name);
 }
 
-Shader& ResourceManager::GetShader(const std::string& name, const std::string& file, const std::size_t& line) {
+Shader& ResourceManager::GetShader(const std::string& name, [[maybe_unused]] const std::string& file, [[maybe_unused]] const std::size_t& line) {
 #if ENGINE_DEBUG
     if (!this->ShaderLoaded(name)) {
         std::cout << "Failed to get shader: " << name << " at: [" << file << ":" << line << "]" << std::endl;
@@ -56,7 +56,7 @@ bool ResourceManager::ShaderLoaded(const std::string& name) const {
 	return Shaders.find(name) != Shaders.end();
 }
 
-void ResourceManager::SetShaderAsSelfUsed(const std::string& name) {
+void ResourceManager::SetShaderAsSelfUsed([[maybe_unused]] const std::string& name) {
 #if ENGINE_DEBUG
     UnusedShaders.erase(name);
 #endif
@@ -97,7 +97,7 @@ bool ResourceManager::TextureLoaded(const std::string& name) const {
     return Textures.find(name) != Textures.end();
 }
 
-void ResourceManager::SetTextureAsSelfUsed(const std::string& name) {
+void ResourceManager::SetTextureAsSelfUsed([[maybe_unused]] const std::string& name) {
 #if ENGINE_DEBUG
     UnusedTextures.erase(name);
 #endif

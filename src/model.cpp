@@ -141,9 +141,9 @@ Mesh Model::processMesh(Engine* engine, const aiMesh& mesh, const aiScene& scene
 	}
 
     auto ai_to_colour = [](const aiMaterial* material, const char* k, const unsigned int& i, const unsigned int& j) {
-        aiColor3D colour (0.f,0.f,0.f);
-        material->Get(k, i, j, colour);
-        return glm::vec3(colour.r, colour.g, colour.b);
+        aiColor3D matColour (0.f,0.f,0.f);
+        material->Get(k, i, j, matColour);
+        return glm::vec3(matColour.r, matColour.g, matColour.b);
     };
 
 	// process materials

@@ -324,6 +324,7 @@ target_link_libraries(engine PRIVATE ${ENGINE_PRIV_DEPS})
 
 # Optional linking to std::filesystem for gcc < 9.0
 target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:stdc++fs>)
+target_link_libraries(engine PRIVATE $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>, 11.0>>:stdc++fs>)
 
 target_compile_options(engine PRIVATE "${ENGINE_EXTRA_FLAGS}")
 
