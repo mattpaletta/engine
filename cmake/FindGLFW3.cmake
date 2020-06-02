@@ -11,20 +11,23 @@
 # installation.
 #
 # default search dirs
-# 
+#
 # Cmake file from: https://github.com/daw42/glslcookbook
 
 set( _glfw3_HEADER_SEARCH_DIRS
 "/usr/include"
 "/usr/local/include"
 "${CMAKE_SOURCE_DIR}/includes"
-"C:/Program Files (x86)/glfw/include" )
+"C:/Program Files (x86)/glfw/include"
+"C:/ProgramData/chocolatey/include")
 set( _glfw3_LIB_SEARCH_DIRS
 "/usr/lib"
 "/usr/local/lib"
 "${CMAKE_SOURCE_DIR}/lib"
 "C:/Program Files (x86)/glfw/lib"
-"C:/Program Files (x86)/glfw/lib-msvc110" )
+"C:/Program Files (x86)/glfw/lib-msvc110"
+"C:/ProgramData/chocolatey/msvc120-64/lib"
+"C:/ProgramData/chocolatey/msvc110-64/lib")
 
 # Check environment for root search directory
 set( _glfw3_ENV_ROOT $ENV{GLFW3_ROOT} )
