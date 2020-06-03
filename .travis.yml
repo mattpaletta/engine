@@ -336,6 +336,11 @@ script:
       choco install -y python3;
     fi;
   - cd build
-  - cmake -DCMAKE_CXX_COMPILER=${env_cmake_cxx_compiler} -DCMAKE_C_COMPILER=${env_cmake_c_compiler} -DCMAKE_BUILD_TYPE=${BUILD} -DENGINE_ENABLE_AUDIO=${enable_audio} -DENGINE_ENABLE_VR=${enable_vr} -DENGINE_ENABLE_TEXT=${enable_text} -DENGINE_ENABLE_ANIMATION=${enable_animation} -DENGINE_ENABLE_JSON=${enable_json} -DENGINE_MIN_GAME_OBJECT=${enable_min_game_object} -DENGINE_ENABLE_MULTITHREADED=${enable_multithreaded} -DENGINE_DEBUG=${enable_debug} -DENGINE_DEBUG_VR=${enable_debug_vr} -DENGINE_EXTRA_COMPILER_CHECKS=ON -DENGINE_WERROR=ON ..
+# These are the same, except we explicitly locate the python executable on windows.
+  - if [[ $TRAVIS_OS_NAME == "windows" ]]; then
+      cmake -DCMAKE_CXX_COMPILER=${env_cmake_cxx_compiler} -DCMAKE_C_COMPILER=${env_cmake_c_compiler} -DCMAKE_BUILD_TYPE=${BUILD} -DENGINE_ENABLE_AUDIO=${enable_audio} -DENGINE_ENABLE_VR=${enable_vr} -DENGINE_ENABLE_TEXT=${enable_text} -DENGINE_ENABLE_ANIMATION=${enable_animation} -DENGINE_ENABLE_JSON=${enable_json} -DENGINE_MIN_GAME_OBJECT=${enable_min_game_object} -DENGINE_ENABLE_MULTITHREADED=${enable_multithreaded} -DENGINE_DEBUG=${enable_debug} -DENGINE_DEBUG_VR=${enable_debug_vr} -DENGINE_EXTRA_COMPILER_CHECKS=ON -DENGINE_WERROR=ON -DPYTHON_EXECUBABLE=C:/Python38/python.exe ..;
+    else
+      cmake -DCMAKE_CXX_COMPILER=${env_cmake_cxx_compiler} -DCMAKE_C_COMPILER=${env_cmake_c_compiler} -DCMAKE_BUILD_TYPE=${BUILD} -DENGINE_ENABLE_AUDIO=${enable_audio} -DENGINE_ENABLE_VR=${enable_vr} -DENGINE_ENABLE_TEXT=${enable_text} -DENGINE_ENABLE_ANIMATION=${enable_animation} -DENGINE_ENABLE_JSON=${enable_json} -DENGINE_MIN_GAME_OBJECT=${enable_min_game_object} -DENGINE_ENABLE_MULTITHREADED=${enable_multithreaded} -DENGINE_DEBUG=${enable_debug} -DENGINE_DEBUG_VR=${enable_debug_vr} -DENGINE_EXTRA_COMPILER_CHECKS=ON -DENGINE_WERROR=ON ..;
+    fi;
   - cmake --build . -j 4
  #- ctest .
