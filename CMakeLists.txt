@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
+find_program(CCACHE_PROGRAM ccache)
+if (CCACHE_PROGRAM AND NOT CMAKE_GENERATOR STREQUAL "Xcode")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+endif()
+
 project(engine LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -28,12 +33,12 @@ endmacro()
 
 ## These two things are needed for YCM
 SET( CMAKE_EXPORT_COMPILE_COMMANDS ON )
-IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
+if ( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
   EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
     ${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
   )
-ENDIF()
+endif()
 
 function(set_option_if_not_set var_name desc default)
 	if (NOT DEFINED ${var_name})
@@ -76,6 +81,7 @@ endif()
 
 if(WIN32)
 	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+	set(BUILD_SHARED_LIBS ON)
 endif()
 
 if (ENGINE_EXTRA_COMPILER_CHECKS)
@@ -125,10 +131,6 @@ if (ENGINE_WERROR)
 endif()
 message("ENGINE: Extra flags: " ${ENGINE_EXTRA_FLAGS})
 
-find_program(CCACHE_PROGRAM ccache)
-if(CCACHE_PROGRAM AND NOT CMAKE_GENERATOR STREQUAL "Xcode" AND NOT ${ENGINE_WERROR})
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
-endif()
 
 # Include the addons
 set(FETCHCONTENT_UPDATES_DISCONNECTED ${ENGINE_FETCH_CONTENT_DISABLE_UPDATES})
@@ -195,12 +197,19 @@ if (WIN32)
 		SET(ASSIMP_MSVC_VERSION "vc141")
     ENDIF()
 	get_property(assimp_BINARY_DIR GLOBAL PROPERTY assimp_BINARY_DIR)
-	add_custom_target(EngineUpdateAssimpLibsDebugSymbolsAndDLLs
-		COMMAND ${CMAKE_COMMAND} -E copy ${assimp_BINARY_DIR}/code/Debug/assimp-${ASSIMP_MSVC_VERSION}-mt.dll ${CMAKE_BINARY_DIR}/assimp-${ASSIMP_MSVC_VERSION}-mt.dll
-		DEPENDS assimp::assimp
-		VERBATIM)
-	# file(COPY ${assimp_BINARY_DIR}/code/Debug/assimp-${ASSIMP_MSVC_VERSION}-mt.dll DESTINATION ${CMAKE_BINARY_DIR})
-	add_dependencies(engine EngineUpdateAssimpLibsDebugSymbolsAndDLLs) # not working for now
+	set(assimp_files "assimp-${ASSIMP_MSVC_VERSION}-mt.dll" "assimp-${ASSIMP_MSVC_VERSION}-mtl.lib")
+	foreach(assimp_dll_file IN LISTS assimp_files)
+		set(assimp_dll_source ${assimp_BINARY_DIR}/code/Debug/)
+		# By default, CMAKE will cache this value
+		unset(${assimp_dll_source}/${assimp_dll_file} CACHE)
+		if (EXISTS ${assimp_dll_source}/${assimp_dll_file})
+			add_custom_target(EngineUpdateAssimpLibsDebugSymbolsAndDLLs
+				COMMAND ${CMAKE_COMMAND} -E copy ${assimp_dll_source}/${assimp_dll_file} ${CMAKE_BINARY_DIR}/${assimp_dll_file}
+				DEPENDS assimp::assimp
+				VERBATIM)
+			add_dependencies(engine EngineUpdateAssimpLibsDebugSymbolsAndDLLs) # not working for now
+		endif()
+	endforeach()
 endif()
 
 get_target_property(assimp_INCLUDE_DIRS assimp::assimp INTERFACE_INCLUDE_DIRECTORIES)
